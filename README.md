@@ -6,6 +6,7 @@
 index.html      页面
 styles.css      样式（跟随系统深色 / 浅色）
 app.js          全部逻辑
+drive.js        Google Drive 备份（可选，不用就不会加载任何外部脚本）
 data/
   日本.json      707 条
   中国.json       77 条
@@ -88,7 +89,46 @@ git add data/ && git commit -m "log: 更新进度"
 
 **第二处：快照导出。** 右上角 **导出备份** 会把四个区域打包成一个 `medialog-YYYYMMDD.json` 下载下来。
 
-**Google Drive 同步（待做）。** 接口已经预留好了：`app.js` 里的 `snapshot()` 负责生成完整载荷，加一个「同步到 Google Drive」按钮时，只要拿到 OAuth token 后把 `snapshot()` 的结果 POST 到 Drive files API 即可，应用其余部分不需要改动。
+**第三处：Google Drive。** 右上角 **☁ Drive** 会把四个 JSON 原样上传到 Drive 里的 `MediaLog` 文件夹 —— 不打包、不转换，云端那四个文件跟 `data/` 里的完全一致，直接下载就能用。
+
+## Google Drive 设置
+
+### 先决条件：必须用 `http://localhost` 打开
+
+Google 不接受 `file://` 作为 OAuth 来源，所以**只有通过 http 打开时才能同步**。在仓库目录运行：
+
+```bash
+python -m http.server 8000
+```
+
+然后访问 `http://localhost:8000`。（顺带一提，这样打开时 `data/` 会自动加载，连文件夹都不用选 —— 只有要编辑时才需要连一次。）
+
+### 一次性配置
+
+1. 打开 [Google Cloud Console](https://console.cloud.google.com/)，新建一个项目（名字随便，比如 `MediaLog`）
+2. **APIs & Services → Library**，搜索 **Google Drive API**，点 Enable
+3. **OAuth consent screen**：类型选 External，填应用名和你自己的邮箱；在 **Test users** 里把自己的 Google 账号加进去
+4. **Credentials → Create credentials → OAuth client ID**
+   - Application type：**Web application**
+   - **Authorized JavaScript origins** 填 `http://localhost:8000`
+   - 端口必须和你实际用的**完全一致**；换端口就要回来加一条
+   - 这个流程不需要填 redirect URI
+5. 复制生成的客户端 ID（`xxxxx.apps.googleusercontent.com`），粘贴到应用里 **☁ Drive** 弹窗的输入框
+
+客户端 ID 存在 localStorage，只需填一次。
+
+### 使用
+
+- **上传到 Drive** —— 把当前四个区域写到云端。第一次会创建 `MediaLog` 文件夹，之后都是**原地更新同一个文件**（不会越传越多，Drive 自己的版本历史也能用上）
+- **从 Drive 恢复** —— 反向覆盖本地 `data/`，会先弹确认框；必须先连接本地文件夹，否则恢复的数据无处可写，应用会直接拒绝
+
+### 关于权限
+
+申请的是 `drive.file` 范围 —— **本应用只能看到自己创建的文件**，读不到你 Drive 里的其他任何东西。代价是它也认不出你手动建的 `MediaLog` 文件夹，只会用自己创建的那个。
+
+access token 只存在内存里，不写 localStorage，所以每个浏览器会话需要点一次登录（已授权过的话 Google 通常会静默通过）。`drive.file` 属于非敏感范围，个人自用不需要走 Google 的应用验证。
+
+`accounts.google.com/gsi/client` 是**点了同步才按需加载**的 —— 不用 Drive 的话，这个应用不会请求任何外部资源。
 
 ## 关于迁移
 

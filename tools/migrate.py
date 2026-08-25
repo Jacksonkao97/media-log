@@ -198,10 +198,20 @@ def main():
             if item["category"] == "电影":
                 report["movies"].append(item["name"])
 
-            item["id"] = str(uuid.uuid4())
-            item["createdAt"] = stamp
-            item["updatedAt"] = stamp
-            buckets[region].append(item)
+            # Same key order the app's normalise() produces, so simply opening
+            # MediaLog never rewrites these files into a huge no-op diff.
+            buckets[region].append({
+                "id": str(uuid.uuid4()),
+                "name": item["name"],
+                "progress": item["progress"],
+                "watch": item["watch"],
+                "status": item["status"],
+                "category": item["category"],
+                "url": item["url"],
+                "note": item["note"],
+                "createdAt": stamp,
+                "updatedAt": stamp,
+            })
 
     now = iso(datetime.now(timezone.utc).timestamp())
     os.makedirs(DATA, exist_ok=True)

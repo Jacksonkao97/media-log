@@ -287,3 +287,49 @@ tr:hover .edit, .edit:focus-visible { opacity: 1; }
   .row3 { grid-template-columns: 1fr; }
   .grid thead th { top: 130px; }
 }
+
+/* ---------- Google Drive dialog ---------- */
+.gd { padding: 20px 22px 16px; display: flex; flex-direction: column; gap: 13px; }
+.gd h2 { margin: 0; font-size: 16px; font-weight: 650; }
+
+.gd-hint {
+  margin: 0;
+  font-size: 12.5px; line-height: 1.65;
+  color: var(--fg-dim);
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  padding: 9px 12px;
+}
+.gd-hint.warn { border-left-color: var(--amber); }
+.gd-hint code {
+  font: 11.5px/1.5 var(--mono);
+  background: var(--bg); color: var(--fg);
+  padding: 1px 5px; border-radius: 4px;
+  word-break: break-all;
+}
+
+.gd-status { font-size: 12px; color: var(--fg-faint); }
+.gd-status b { color: var(--fg-dim); font-weight: 600; }
+
+.gd-log {
+  margin: 0;
+  font: 11.5px/1.65 var(--mono);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 9px 11px;
+  height: 132px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--fg-dim);
+}
+.gd-log:empty::before { content: "日志会显示在这里"; color: var(--fg-faint); }
+.gd-log.ok  { border-color: color-mix(in srgb, var(--green) 55%, var(--line)); }
+.gd-log.err { border-color: var(--red); color: var(--red); }
+
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn:disabled:hover { background: var(--bg-3); border-color: var(--line); }
+.btn-ghost:disabled:hover { background: transparent; }

@@ -22,6 +22,7 @@
 
   <div class="spacer"></div>
 
+  <button class="btn btn-ghost" id="btnDrive" title="备份到 Google Drive">☁ Drive</button>
   <button class="btn btn-ghost" id="btnExport" title="下载所有区域的合并快照">导出备份</button>
   <button class="btn btn-primary" id="btnNew">＋ 新增</button>
 </header>
@@ -119,8 +120,32 @@
   </form>
 </dialog>
 
+<dialog class="modal" id="gdlg">
+  <div class="gd">
+    <h2>Google Drive 备份</h2>
+    <p class="gd-hint" id="gdHint"></p>
+
+    <label class="field">
+      <span>OAuth 客户端 ID <b>*</b></span>
+      <input id="gdClient" autocomplete="off" spellcheck="false"
+             placeholder="1234567890-xxxxxxxx.apps.googleusercontent.com">
+    </label>
+
+    <div class="gd-status" id="gdStatus"></div>
+    <pre class="gd-log" id="gdLog"></pre>
+
+    <footer class="modal-foot">
+      <button type="button" class="btn btn-ghost" id="gdPull">从 Drive 恢复</button>
+      <div class="spacer"></div>
+      <button type="button" class="btn btn-ghost" id="gdClose">关闭</button>
+      <button type="button" class="btn btn-primary" id="gdPush">上传到 Drive</button>
+    </footer>
+  </div>
+</dialog>
+
 <div class="toast" id="toast" hidden></div>
 
 <script src="app.js"></script>
+<script src="drive.js"></script>
 </body>
 </html>

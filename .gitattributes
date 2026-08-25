@@ -1,0 +1,6 @@
+# The app always writes LF; keep the repo LF so saving never churns line endings.
+*.json text eol=lf
+*.js   text eol=lf
+*.css  text eol=lf
+*.html text eol=lf
+*.docx binary
