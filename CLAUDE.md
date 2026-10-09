@@ -231,5 +231,8 @@ The components under `src/components/`:
 
 ## Data and tools
 
-- `data/*.json` is the owner's real data. It serves as v1's storage and as the import source for v2. **Remove it from the repo before deploying anywhere public.**
+- `data/*.json` is the owner's real data. It serves as v1's storage and as the import source for v2.
+  - On `v2` it is untracked and gitignored, so it stays only on the owner's machine. Never commit it again.
+  - It is still in older commits and on `main`, which tracks it. The repo is private, so that is fine. Before making the repo public, purge it from history.
+  - Switching to `main` and back to `v2` deletes the local `data/`, because `main` tracks it and `v2` doesn't. Copy it elsewhere first, or restore it with `git checkout main -- data && git rm -r -q --cached data`.
 - `tools/migrate.py` was a one-time `.docx` → JSON importer, and the `.docx` files are not committed. **Do not re-run it.** It regenerates every UUID and overwrites `data/`.
