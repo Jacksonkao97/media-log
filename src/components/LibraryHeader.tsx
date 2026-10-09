@@ -73,8 +73,8 @@ interface Props {
   ready: boolean;
 }
 
-/* Returns a fragment on purpose: the sticky filter bar's containing block must
- * be <main>, which spans the whole list. Wrapping this in a div stops it sticking. */
+/* On desktop the page doesn't scroll (the list scrolls inside ItemList), so
+ * the title and filter bar stay in view without being sticky. */
 export function LibraryHeader({ searchRef, ...p }: Props) {
   const watch: WatchTab = [...p.filters.watch][0] ?? ALL;
   const chipCount = p.filters.category.size + p.filters.status.size;
@@ -100,9 +100,8 @@ export function LibraryHeader({ searchRef, ...p }: Props) {
         </Button>
       </div>
 
-      {/* Sticky on desktop so filters stay in reach while scrolling a long list. */}
       {p.showFilters && (
-        <div className="bg-background/90 -mx-1 mb-1 flex flex-col gap-3 px-1 pb-3 backdrop-blur-md md:sticky md:top-0 md:z-20 md:pt-3">
+        <div className="mb-1 flex flex-col gap-3 pb-3 md:pt-3">
           <Segmented<WatchTab>
             label="观看状态"
             value={watch}

@@ -31,9 +31,11 @@ interface Props {
   onBump: (item: Item) => void;
 }
 
+/* Desktop: the rows scroll inside the card, under a fixed column header,
+ * once the list is taller than the space MediaLog leaves it. */
 export function ItemList({ items, flash, onEdit, onBump }: Props) {
   return (
-    <div className="bg-card overflow-hidden rounded-xl border">
+    <div className="bg-card overflow-hidden rounded-xl border md:flex md:min-h-0 md:flex-col">
       <div
         aria-hidden
         className={cn(
@@ -47,7 +49,7 @@ export function ItemList({ items, flash, onEdit, onBump }: Props) {
         <span>状态</span>
         <span>更新</span>
       </div>
-      <ul className="divide-divider divide-y">
+      <ul className="divide-divider divide-y md:min-h-0 md:overflow-y-auto">
         {items.map((it) => (
           <Row
             key={it.id}

@@ -207,7 +207,7 @@ The components under `src/components/`:
   - Tap targets are at least 40px tall, with 8px gaps.
   - Inputs use 16px text, because iOS Safari zooms into smaller inputs on focus. shadcn's `Input` already does this with `text-base md:text-sm`.
   - Bars and sheets pad for `env(safe-area-inset-*)`.
-- **Sticky filter bar.** On desktop the filter bar sticks while the list scrolls. For that to work it must be a direct child of `<main>`: `LibraryHeader` returns a fragment for this reason. Wrapping it in a div silently breaks the sticking.
+- **List scrolls inside its card.** On desktop the library view fits the window: `MediaLog` gives the page `h-dvh` and makes `<main>` a flex column, and the rows of `ItemList` scroll under its column header. The title and filter bar therefore stay put. `<main>`, the card and the `<ul>` need `min-h-0`, or the list grows past the window and the whole page scrolls again. The list's wrapper is `flex-1` with `min-h-60`, so a very short window keeps a few rows and scrolls the page instead. Phones and 发现 still scroll the page.
 - **Motion.** Animations come from `motion` (`motion/react`). `MediaLog` wraps the app in `<MotionConfig reducedMotion="user">`, and CSS transitions are also cut under `prefers-reduced-motion`. Keep it subtle:
   - the knob sliding between segmented options;
   - a highlight on the row that just changed, plus its progress number rolling in (driven by `flash` in `MediaLog`);

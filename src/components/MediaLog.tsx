@@ -54,6 +54,7 @@ import {
   snapshot,
   type Imported,
 } from "@/lib/transfer";
+import { cn } from "@/lib/utils";
 import { MobileBar, Sidebar, type Section, type StorageState } from "./Chrome";
 import { Discover, type PickWork } from "./Discover";
 import { IosInstallDialog, useInstall } from "./Pwa";
@@ -486,12 +487,23 @@ export function MediaLog({
   return (
     <MotionConfig reducedMotion="user">
       <TooltipProvider delayDuration={300}>
-        <div className="flex min-h-dvh">
+        {/* Desktop library: the page fits the window and only the list scrolls
+            (inside ItemList), so the title and filters stay put. Phones and
+            发现 scroll the page as usual. */}
+        <div
+          className={cn("flex min-h-dvh", section === "library" && "md:h-dvh")}
+        >
           <Sidebar {...chrome} />
 
           <div className="flex min-w-0 flex-1 flex-col">
             <MobileBar {...chrome} />
-            <main className="mx-auto w-full max-w-5xl px-8 pt-8 pb-16 max-md:px-4 max-md:pt-5 max-md:pb-28">
+            <main
+              className={cn(
+                "mx-auto w-full max-w-5xl px-8 pt-8 pb-16 max-md:px-4 max-md:pt-5 max-md:pb-28",
+                section === "library" &&
+                  "md:flex md:min-h-0 md:flex-1 md:flex-col md:pb-8",
+              )}
+            >
               {section === "discover" ? (
                 <Discover
                   feed={feed}
@@ -528,7 +540,11 @@ export function MediaLog({
                     ready={library !== null}
                     showFilters={all.length > 0}
                   />
-                  <div className="mt-3">{body}</div>
+                  {/* Takes the height left over; in a very short window it
+                      keeps a few rows and lets the page scroll instead. */}
+                  <div className="mt-3 md:flex md:min-h-60 md:flex-1 md:flex-col">
+                    {body}
+                  </div>
                 </>
               )}
             </main>
