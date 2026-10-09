@@ -6,6 +6,12 @@
 export const FEED_IDS = ["airing", "season", "manga", "movies"] as const;
 export type FeedId = (typeof FEED_IDS)[number];
 
+/** The feeds the app offers. 电影 needs TMDB_API_KEY: without it the feed is
+ *  left out everywhere (nav, prerendered pages, precache), so /discover/movies
+ *  is a 404. Setting the key and redeploying brings it back. */
+export const shownFeeds = (movies: boolean): FeedId[] =>
+  FEED_IDS.filter((f) => f !== "movies" || movies);
+
 /** Each feed's name, here rather than in Discover.tsx so the server can use
  *  it too (page titles, lib/view.ts). */
 export const FEED_LABEL: Record<FeedId, string> = {

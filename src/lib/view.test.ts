@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_VIEW,
-  VIEW_PATHS,
   parseView,
   viewPath,
+  viewPaths,
   viewTitle,
 } from "./view";
 
 describe("view paths", () => {
   it("gives every region and feed its own path, 日本 at /", () => {
-    expect(VIEW_PATHS).toEqual([
+    expect(viewPaths(true)).toEqual([
       "/",
       "/cn",
       "/kr",
@@ -21,6 +21,12 @@ describe("view paths", () => {
     ]);
   });
 
+  it("leaves 电影 out while TMDB isn't configured", () => {
+    expect(viewPaths(false)).toEqual(
+      viewPaths(true).filter((p) => p !== "/discover/movies"),
+    );
+  });
+
   it("names only the part of the view that is showing", () => {
     expect(viewPath({ ...DEFAULT_VIEW, region: "韩国" })).toBe("/kr");
     expect(
@@ -29,7 +35,7 @@ describe("view paths", () => {
   });
 
   it("reads every path back", () => {
-    for (const path of VIEW_PATHS) {
+    for (const path of viewPaths(true)) {
       const shown = parseView(path)!;
       expect(viewPath({ ...DEFAULT_VIEW, ...shown })).toBe(path);
     }

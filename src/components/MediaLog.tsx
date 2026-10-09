@@ -549,6 +549,7 @@ export function MediaLog({
     section,
     region,
     feed,
+    moviesEnabled,
     storage,
     sync,
     onSection: setSection,

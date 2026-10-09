@@ -3,7 +3,12 @@
  * right region or feed at once. Switching views inside the app only pushes
  * the URL; it doesn't load a page. */
 
-import { FEED_IDS, FEED_LABEL, type FeedId } from "./discover/feeds";
+import {
+  FEED_IDS,
+  FEED_LABEL,
+  shownFeeds,
+  type FeedId,
+} from "./discover/feeds";
 import { REGIONS, type Region } from "./schema";
 
 export type Section = "library" | "discover";
@@ -40,10 +45,11 @@ export function viewPath(v: View): string {
 export const viewTitle = (v: View) =>
   `${v.section === "discover" ? FEED_LABEL[v.feed] : v.region} · MediaLog`;
 
-/** Every view's path: what gets prerendered and precached. */
-export const VIEW_PATHS: string[] = [
+/** Every view's path: what gets prerendered and precached. `movies`: whether
+ *  电影 is on (TMDB_API_KEY is set; see shownFeeds). */
+export const viewPaths = (movies: boolean): string[] => [
   ...REGIONS.map((region) => viewPath({ ...DEFAULT_VIEW, region })),
-  ...FEED_IDS.map((feed) =>
+  ...shownFeeds(movies).map((feed) =>
     viewPath({ ...DEFAULT_VIEW, section: "discover", feed }),
   ),
 ];

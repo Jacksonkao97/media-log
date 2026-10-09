@@ -22,7 +22,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FEED_IDS, type FeedId } from "@/lib/discover/feeds";
+import { shownFeeds, type FeedId } from "@/lib/discover/feeds";
 import { REGIONS, type Library as Lib, type Region } from "@/lib/schema";
 import { REMINDERS_ENABLED } from "@/lib/track/enabled";
 import { cn } from "@/lib/utils";
@@ -49,6 +49,8 @@ interface Props {
   section: Section;
   region: Region;
   feed: FeedId;
+  /** TMDB is configured, so 电影 is offered (shownFeeds). */
+  moviesEnabled: boolean;
   storage: StorageState;
   sync: DriveSync;
   install: Install;
@@ -137,6 +139,7 @@ export function Sidebar({
   section,
   region,
   feed,
+  moviesEnabled,
   storage,
   sync,
   install,
@@ -180,7 +183,7 @@ export function Sidebar({
       <nav aria-label="发现" className="mt-6">
         <p className="text-faint mb-1.5 px-3 text-xs font-medium">发现</p>
         <ul className="flex flex-col gap-0.5">
-          {FEED_IDS.map((f) => {
+          {shownFeeds(moviesEnabled).map((f) => {
             const { label, icon: Icon } = FEEDS[f];
             return (
               <li key={f}>
@@ -245,6 +248,7 @@ export function MobileBar({
   section,
   region,
   feed,
+  moviesEnabled,
   storage,
   sync,
   install,
@@ -353,7 +357,7 @@ export function MobileBar({
         </nav>
       ) : (
         <nav aria-label="发现" className="flex gap-1 overflow-x-auto px-2">
-          {FEED_IDS.map((f) => (
+          {shownFeeds(moviesEnabled).map((f) => (
             <TabButton key={f} on={f === feed} onClick={() => onFeed(f)}>
               {FEEDS[f].short}
             </TabButton>
