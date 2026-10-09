@@ -55,7 +55,8 @@ import {
   type Imported,
 } from "@/lib/transfer";
 import { cn } from "@/lib/utils";
-import { MobileBar, Sidebar, type Section, type StorageState } from "./Chrome";
+import { parseView, viewPath, type Section, type View } from "@/lib/view";
+import { MobileBar, Sidebar, type StorageState } from "./Chrome";
 import { Discover, type PickWork } from "./Discover";
 import { IosInstallDialog, useInstall } from "./Pwa";
 import { RemindersDialog } from "./Reminders";
@@ -71,23 +72,26 @@ const noFilters = (): Filters => ({
   watch: new Set(),
 });
 
-/** `syncEnabled`: Google sign-in is configured on this server (see src/auth.ts).
+/** `initialView`: the view this page's URL names (lib/view.ts).
+ *  `syncEnabled`: Google sign-in is configured on this server (see src/auth.ts).
  *  `moviesEnabled`: so is TMDB, for the 电影 feed (TMDB_API_KEY).
  *  `pushKey`: the VAPID public key when 更新提醒 is set up (lib/track/config.ts). */
 export function MediaLog({
+  initialView,
   syncEnabled,
   moviesEnabled,
   pushKey,
 }: {
+  initialView: View;
   syncEnabled: boolean;
   moviesEnabled: boolean;
   pushKey: string | null;
 }) {
   const [library, setLibrary] = useState<Library | null>(null);
   const [storage, setStorage] = useState<StorageState>("loading");
-  const [section, setSection] = useState<Section>("library");
-  const [region, setRegion] = useState<Region>(REGIONS[0]);
-  const [feed, setFeed] = useState<FeedId>("airing");
+  const [section, setSection] = useState<Section>(initialView.section);
+  const [region, setRegion] = useState<Region>(initialView.region);
+  const [feed, setFeed] = useState<FeedId>(initialView.feed);
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [query, setQuery] = useState("");
@@ -171,6 +175,30 @@ export function MediaLog({
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  /* ---------------------------------------------------------------- URL */
+
+  // Every view has its own prerendered page (lib/view.ts). Switching views
+  // only pushes its URL, so a reload paints the same view and Back returns
+  // to the previous one, without the page reloading in between.
+  useEffect(() => {
+    const path = viewPath({ section, region, feed });
+    if (path !== location.pathname) history.pushState(null, "", path);
+  }, [section, region, feed]);
+
+  // Back/Forward: show the view the URL names. A feed URL doesn't name a
+  // region (or the reverse), so that one stays as it was.
+  useEffect(() => {
+    const onPop = () => {
+      const shown = parseView(location.pathname);
+      if (!shown) return;
+      setSection(shown.section);
+      if ("region" in shown) setRegion(shown.region);
+      else setFeed(shown.feed);
+    };
+    addEventListener("popstate", onPop);
+    return () => removeEventListener("popstate", onPop);
   }, []);
 
   /** Applies an edit and writes the touched regions. Failures are loud — a

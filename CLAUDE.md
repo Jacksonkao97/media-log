@@ -29,7 +29,7 @@ npm run lint           # ESLint (next lint no longer exists in Next 16)
 npm run format         # Prettier; data/ is excluded via .prettierignore
 npx tsc --noEmit       # typecheck; needs a build or `next dev` first for the generated types
 npx tsc --noEmit -p src/sw   # typecheck the service worker (its own tsconfig, webworker lib)
-npm test               # Vitest: src/**/*.test.ts (sync merge and engine, launch params, import, discover feeds, tracker)
+npm test               # Vitest: src/**/*.test.ts (sync merge and engine, launch params, view URLs, import, discover feeds, tracker)
 npx vitest run src/lib/sync/merge.test.ts -t "newer edit"   # one file / one test
 node scripts/generate-icons.mjs   # regenerate every app icon (sharp); edit this, not the PNGs
 ```
@@ -50,11 +50,17 @@ Vitest covers pure logic only. To check UI behaviour, drive the running app in a
 
 ## Architecture
 
-The app is a single client-side page: `src/app/page.tsx` renders `src/components/MediaLog.tsx` (`"use client"`), which holds all state. The only server code is Google sign-in (`src/auth.ts` and `src/app/api/auth/[...nextauth]/route.ts`), the 发现 feeds (`src/app/api/discover/[feed]/route.ts`) and 更新提醒 (`src/app/api/track/[action]/route.ts`).
+The app is one client-side component: `src/app/[[...view]]/page.tsx` renders `src/components/MediaLog.tsx` (`"use client"`), which holds all state. The only server code is Google sign-in (`src/auth.ts` and `src/app/api/auth/[...nextauth]/route.ts`), the 发现 feeds (`src/app/api/discover/[feed]/route.ts`) and 更新提醒 (`src/app/api/track/[action]/route.ts`).
 
-`page.tsx` passes `syncEnabled` (all three auth env vars set), `moviesEnabled` (`TMDB_API_KEY` set) and `pushKey` (the VAPID public key, when reminders are configured). The page is statically prerendered, so `next build` captures them; after changing the env, rebuild. `next dev` re-reads it.
+`page.tsx` passes `initialView` (from the URL, below), `syncEnabled` (all three auth env vars set), `moviesEnabled` (`TMDB_API_KEY` set) and `pushKey` (the VAPID public key, when reminders are configured). The pages are statically prerendered, so `next build` captures them; after changing the env, rebuild. `next dev` re-reads it.
 
 `MediaLog` has two sections, `library` (the regions) and `discover` (发现); `section`, `region` and `feed` are its state. The desktop sidebar lists both; on phones a 片单 / 发现 switch in the top bar picks the section, and the second row shows its regions or feeds.
+
+**Views and URLs** (`src/lib/view.ts`, `src/app/[[...view]]/page.tsx`).
+
+- Every view has its own path. `/` is 日本; `/cn`, `/kr` and `/west` are the other regions; `/discover/<feed>` is a 发现 feed. `generateStaticParams` prerenders all 8 views and `dynamicParams = false` makes every other path a 404. A reload therefore paints the right region or feed at once. Restoring a view on the client, from `localStorage` or a hash, can't do that: the first paint would be the prerendered default, then it would jump.
+- `MediaLog` starts from `initialView`. When `section`, `region` or `feed` changes, an effect calls `history.pushState` with `viewPath()`. Next integrates native `pushState`, so nothing reloads and the library stays in memory. On `popstate` (Back/Forward) the state is read back with `parseView()`. A feed URL doesn't name a region, so the phone's 片单 switch returns to the region last shown, and vice versa.
+- The service worker precaches all 8 pages (`VIEW_PATHS`), so each one opens offline. The installed app's `start_url` and the 新增 shortcut stay on `/`.
 
 The components under `src/components/`:
 
@@ -128,7 +134,7 @@ The components under `src/components/`:
 - **Service worker** (Serwist).
   - `src/sw/sw.ts` is bundled by `createSerwistRoute` in `src/app/serwist/[path]/route.ts` and prerendered at build to `/serwist/sw.js` (with `Service-Worker-Allowed: /`).
   - It has its own `tsconfig.json`, and the root one excludes `src/sw`.
-  - It precaches the build output plus `/`. The `/` entry gets a random revision per build, so every deploy is a worker update.
+  - It precaches the build output plus every view's page (`VIEW_PATHS` from `lib/view.ts`). The pages get a random revision per build, so every deploy is a worker update.
   - `ignoreURLParametersMatching: [/.*/]` lets `/?new=1` and share URLs hit the precached page.
   - Google hosts are NetworkOnly. **Never cache `/api/auth/*`**, because the session carries the access token. Serwist's `defaultCache` already makes it NetworkOnly.
 - **Registration** (`PwaProvider`, wrapped around the app in `layout.tsx`).

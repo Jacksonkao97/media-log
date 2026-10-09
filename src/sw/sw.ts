@@ -5,9 +5,10 @@
 /* The service worker (Serwist), compiled by src/app/serwist/[path]/route.ts
  * and served at /serwist/sw.js. It makes the installed app open offline:
  *
- *   - precached: every build file plus "/" (the app shell, re-fetched each
- *     deploy). Any "/?…" — the 新增 shortcut, Android share links — is served
- *     from that same shell, so it works offline too.
+ *   - precached: every build file plus each view's page ("/", "/cn",
+ *     "/discover/season", …; lib/view.ts), re-fetched each deploy. Any
+ *     "/?…" — the 新增 shortcut, Android share links — is served from "/",
+ *     so it works offline too.
  *   - never cached: Google (sign-in, Drive API, avatars). Drive replies hold
  *     the user's data, and a stale one would mislead sync; when offline those
  *     requests should simply fail, which sync already handles.
@@ -48,7 +49,7 @@ const serwist = new Serwist({
   // A new version takes over at once; the page offers a reload (see PwaProvider).
   skipWaiting: true,
   clientsClaim: true,
-  // "/" comes from the precache, so a navigation preload would be wasted.
+  // Pages come from the precache, so a navigation preload would be wasted.
   navigationPreload: false,
   runtimeCaching: [
     {

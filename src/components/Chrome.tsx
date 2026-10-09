@@ -25,6 +25,7 @@ import {
 import { FEED_IDS, type FeedId } from "@/lib/discover/feeds";
 import { REGIONS, type Library as Lib, type Region } from "@/lib/schema";
 import { cn } from "@/lib/utils";
+import type { Section } from "@/lib/view";
 import { AccountCard, StatusDot, SyncMenuItems } from "./Account";
 import { FEEDS } from "./Discover";
 import { Segmented } from "./Segmented";
@@ -36,7 +37,6 @@ export type StorageState =
   "loading" | "saving" | "saved" | "error" | "unavailable";
 
 /** The two halves of the app: your own list, and what's new out there. */
-export type Section = "library" | "discover";
 const SECTIONS: readonly Section[] = ["library", "discover"];
 const SECTION_LABEL: Record<Section, string> = {
   library: "片单",
