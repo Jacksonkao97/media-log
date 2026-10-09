@@ -183,7 +183,7 @@ node scripts/generate-icons.mjs   # 重新生成应用图标
 
 没配置时「电影」页会显示怎么配置，其他页面不受影响。这个 key 只在服务器上用，不会发到浏览器。
 
-TMDB 的使用条款要求注明来源，电影页底部已经写了；**公开上线前**还要在「关于」之类的地方放上 TMDB 的 logo（见 [TMDB 的说明](https://www.themoviedb.org/about/logos-attribution)）。
+TMDB 的使用条款要求注明来源：电影页底部放了 TMDB 的官方 logo 和条款要求的声明（见 [TMDB 的说明](https://www.themoviedb.org/about/logos-attribution)）。
 
 ## 更新提醒
 

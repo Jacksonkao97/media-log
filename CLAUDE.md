@@ -167,7 +167,10 @@ The components under `src/components/`:
 - **Adding.** `MediaLog.pickWork` opens the editor with `DialogTarget.prefill` (name, category, status, `watch: "未看"`, url) in the work's region. After saving from 发现, the toast offers 查看, which switches to the library.
 - **Timetable days** (`schedule.ts`) are local: yesterday through six days ahead, so each weekly show appears once. The view fixes `now` when it opens.
 - **Client.** `useFeed` keeps results in memory for the session (fresh for 10 min; older copies show while reloading, and stay if the reload fails). Offline, Serwist's default `/api/` rule (network-first, cache `apis`) serves the last copy. Posters come straight from the CDNs as plain `<img>`, not `next/image`. The service worker leaves them alone (`NetworkOnly`), because opaque responses count about 7 MB each against storage quota. Covers fall back to the AniList average colour, then the category icon. Only `https` links and posters are used.
-- **Credit.** TMDB's terms require the notice in `Credit` ("This product uses the TMDB API but is not endorsed or certified by TMDB.") and, for a public site, their logo in an about/credits page, which is still to do (step 6).
+- **Credit.** TMDB's API terms (§3) require their logo and this notice, verbatim apart from the product word: "This website uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB." `Credit` shows both under the 电影 feed.
+  - The logo is TMDB's official "primary long" SVG, saved at `public/credits/tmdb.svg` (from themoviedb.org/about/logos-attribution). It links to TMDB.
+  - It must stay less prominent than the app's own logo; it is 12px tall in faint footer text.
+  - Re-check the wording against the terms now and then; it changed once already.
 - **Testing.** Normalisers, paging and errors are tested against a stubbed `fetch` with fixtures shaped like the documented schemas. They were written without access to the live APIs, so check against the real ones when you can.
 
 **更新提醒** (`src/lib/track/`, `src/app/api/track/[action]/route.ts`, `src/components/useReminders.ts`, `Reminders.tsx`, the push handlers in `src/sw/sw.ts`).

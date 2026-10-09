@@ -632,38 +632,40 @@ function GridSkeleton() {
   );
 }
 
-/** Sources, as their terms ask; TMDB's wording is required verbatim. */
+/** Sources, as their terms ask. TMDB's API terms (§3) require its logo, kept
+ *  less prominent than the app's own, and this notice verbatim. The logo is
+ *  TMDB's official "primary long" SVG (themoviedb.org/about/logos-attribution). */
 function Credit({ tmdb }: { tmdb: boolean }) {
-  const link = "underline underline-offset-2 hover:text-foreground";
+  if (tmdb) {
+    return (
+      <div className="text-faint mt-6 flex flex-col items-start gap-2 text-xs leading-relaxed">
+        <a
+          href="https://www.themoviedb.org"
+          target="_blank"
+          rel="noreferrer noopener"
+          aria-label="TMDB"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- a 2 KB SVG */}
+          <img src="/credits/tmdb.svg" alt="TMDB" className="h-3 w-auto" />
+        </a>
+        <p>
+          电影数据来自 TMDB。This website uses TMDB and the TMDB APIs but is not
+          endorsed, certified, or otherwise approved by TMDB.
+        </p>
+      </div>
+    );
+  }
   return (
     <p className="text-faint mt-6 text-xs leading-relaxed">
-      {tmdb ? (
-        <>
-          电影数据来自{" "}
-          <a
-            href="https://www.themoviedb.org"
-            target="_blank"
-            rel="noreferrer noopener"
-            className={link}
-          >
-            TMDB
-          </a>
-          。This product uses the TMDB API but is not endorsed or certified by
-          TMDB.
-        </>
-      ) : (
-        <>
-          数据来自{" "}
-          <a
-            href="https://anilist.co"
-            target="_blank"
-            rel="noreferrer noopener"
-            className={link}
-          >
-            AniList
-          </a>
-        </>
-      )}
+      数据来自{" "}
+      <a
+        href="https://anilist.co"
+        target="_blank"
+        rel="noreferrer noopener"
+        className="hover:text-foreground underline underline-offset-2"
+      >
+        AniList
+      </a>
     </p>
   );
 }
