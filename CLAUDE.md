@@ -101,7 +101,7 @@ The components under `src/components/`:
 - Delete and +1 don't ask for confirmation. Instead they show a toast with 撤销, which calls `restoreItem` to put back the exact previous item at its old position.
 - Handlers that can run after a later render, such as undo, must read `libRef.current` rather than the `library` from their render. `commit()` keeps `libRef` up to date.
 - `commit()` also calls `sync.schedule(touched)`, so only the regions an edit touched are synced (debounced 1.5 s).
-- Persistence (`src/lib/storage.ts`) stores one IndexedDB record per region. Every call is wrapped in a timeout, because in private, hardened, or some headless browsers `indexedDB.open` never settles. When storage is unusable, the app keeps working in memory and says so.
+- Persistence (`src/lib/storage.ts`) stores one IndexedDB record per region. Every call is wrapped in a timeout, because in private, hardened, or some headless browsers `indexedDB.open` never settles. When storage is unusable, the app keeps working in memory and says so. Once the library has items, `keepStorage()` asks for persistent storage (`navigator.storage.persist()`), so Chrome and Firefox don't evict it under disk pressure. Chrome decides silently; Firefox may ask the user.
 
 **Google Drive sync** (`src/lib/sync/`, `src/components/useDriveSync.ts`, `src/components/Account.tsx`).
 

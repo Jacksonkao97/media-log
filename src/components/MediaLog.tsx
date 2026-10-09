@@ -45,7 +45,7 @@ import {
   type Region,
   type RegionFile,
 } from "@/lib/schema";
-import { loadLibrary, saveRegion } from "@/lib/storage";
+import { keepStorage, loadLibrary, saveRegion } from "@/lib/storage";
 import { REMINDERS_ENABLED } from "@/lib/track/enabled";
 import { launchDraft } from "@/lib/launch";
 import { openTabChannel } from "@/lib/tabs";
@@ -419,14 +419,21 @@ export function MediaLog({
     toast.success(`已导出 ${n} 条到 medialog-${stamp}.json`);
   }
 
+  const hasItems =
+    library !== null && REGIONS.some((r) => library[r].items.length > 0);
+
+  // Once there's something to lose, ask the browser not to evict it.
+  useEffect(() => {
+    if (hasItems) void keepStorage();
+  }, [hasItems]);
+
   // Not signed in, the library lives only in this browser: suggest an
   // export once in a while. Waits until we know nobody is signed in.
   useBackupReminder(
-    library !== null &&
+    hasItems &&
       storage !== "unavailable" &&
       sync.status !== "checking" &&
-      !isSignedIn(sync) &&
-      REGIONS.some((r) => library[r].items.length > 0),
+      !isSignedIn(sync),
     exportSnapshot,
   );
 

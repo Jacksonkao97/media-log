@@ -113,3 +113,16 @@ export function kvDelete(name: string): Promise<void> {
     TIMEOUT_MS,
   );
 }
+
+/** Asks the browser to keep this site's data under storage pressure, instead
+ *  of evicting it with other "best-effort" sites. Chrome decides silently
+ *  (it grants sites you use or installed); Firefox may ask the user. Safari's
+ *  7-day rule for sites you don't visit still applies. Never throws. */
+export async function keepStorage(): Promise<boolean> {
+  try {
+    if (!navigator.storage?.persist) return false;
+    return (await navigator.storage.persisted()) || navigator.storage.persist();
+  } catch {
+    return false;
+  }
+}
