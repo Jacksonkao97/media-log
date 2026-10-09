@@ -14,6 +14,21 @@ import {
 
 export type Imported = Partial<Record<RegionFile["region"], RegionFile>>;
 
+/** Rejects a list that isn't works. normalise() fills in whatever is missing,
+ *  so without this a stray number or a nameless object becomes a blank row. */
+function checkItems(items: unknown, where: string) {
+  if (!Array.isArray(items)) throw new Error(`${where} 不是作品列表`);
+  items.forEach((x, i) => {
+    if (!x || typeof x !== "object" || Array.isArray(x)) {
+      throw new Error(`${where} 第 ${i + 1} 条不是作品`);
+    }
+    const name = (x as { name?: unknown }).name;
+    if (typeof name !== "string" || !name.trim()) {
+      throw new Error(`${where} 第 ${i + 1} 条没有名称`);
+    }
+  });
+}
+
 /** Parses one file. The region comes from the file's own `region` field,
  *  falling back to its name (日本.json -> 日本). */
 export function parseImport(text: string, filename: string): Imported {
@@ -33,7 +48,13 @@ export function parseImport(text: string, filename: string): Imported {
     const regions = obj.regions as Record<string, unknown>;
     const out: Imported = {};
     for (const r of REGIONS) {
-      if (r in regions) out[r] = normalise(regions[r], r);
+      if (!(r in regions)) continue;
+      const list = regions[r] as { items?: unknown } | null;
+      checkItems(
+        Array.isArray(list) ? list : list?.items,
+        `${filename}「${r}」`,
+      );
+      out[r] = normalise(list, r);
     }
     if (!Object.keys(out).length) throw new Error(`${filename} 里没有任何区域`);
     return out;
@@ -49,6 +70,7 @@ export function parseImport(text: string, filename: string): Imported {
   if (!Array.isArray(data) && !Array.isArray(obj.items)) {
     throw new Error(`${filename} 不是 MediaLog 的数据文件`);
   }
+  checkItems(Array.isArray(data) ? data : obj.items, filename);
   return { [region]: normalise(data, region) };
 }
 

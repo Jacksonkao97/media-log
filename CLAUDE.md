@@ -29,7 +29,7 @@ npm run lint           # ESLint (next lint no longer exists in Next 16)
 npm run format         # Prettier; data/ is excluded via .prettierignore
 npx tsc --noEmit       # typecheck; needs a build or `next dev` first for the generated types
 npx tsc --noEmit -p src/sw   # typecheck the service worker (its own tsconfig, webworker lib)
-npm test               # Vitest: src/**/*.test.ts (sync merge and engine, launch params, discover feeds, tracker)
+npm test               # Vitest: src/**/*.test.ts (sync merge and engine, launch params, import, discover feeds, tracker)
 npx vitest run src/lib/sync/merge.test.ts -t "newer edit"   # one file / one test
 node scripts/generate-icons.mjs   # regenerate every app icon (sharp); edit this, not the PNGs
 ```
@@ -81,6 +81,8 @@ The components under `src/components/`:
 - `RegionFile` is exactly the shape of `data/{region}.json` and of v1's Drive backups. The snapshot export (`{ app: "MediaLog", regions }`) is also unchanged.
 - The item key order in `normalise()` matches `tools/migrate.py`. If you add or reorder fields, change both.
 - Import (`src/lib/transfer.ts`) accepts either format. A region file's region comes from its `region` field, falling back to the filename.
+- Import rejects a file unless every item is an object with a non-empty `name`. `normalise()` would otherwise turn stray values into blank rows. One bad file stops the whole import.
+- Import replaces whole regions. Before overwriting a non-empty region, the confirm shows both counts and calls out any region the file would empty. The success toast offers 撤销, which puts the imported regions back as they were.
 
 **Edits are pure functions.**
 

@@ -341,10 +341,18 @@ export function MediaLog({
       .map((r) => `${r} ${imported[r]!.items.length} 条`)
       .join("、");
     const overwriting = regions.filter((r) => lib[r].items.length);
+    // An import replaces whole regions, so show both sides, and call out any
+    // region the file would leave empty.
+    const emptied = overwriting.filter((r) => !imported[r]!.items.length);
+    const changes = overwriting.map((r) => {
+      const n = imported[r]!.items.length;
+      return `${r}：现有 ${lib[r].items.length} 条 → 导入 ${n} 条${n ? "" : "（会被清空）"}`;
+    });
     if (
       overwriting.length &&
       !confirm(
-        `将用导入的文件覆盖：${overwriting.map((r) => `${r}（现有 ${lib[r].items.length} 条）`).join("、")}。\n\n确定继续？`,
+        (emptied.length ? `注意：${emptied.join("、")} 会被清空！\n\n` : "") +
+          `将用导入的文件覆盖：\n${changes.join("\n")}\n\n确定继续？`,
       )
     ) {
       return;
@@ -352,7 +360,22 @@ export function MediaLog({
 
     commit({ library: { ...lib, ...imported }, touched: regions });
     if (!imported[region]) setRegion(regions[0]);
-    toast.success(`已导入：${summary}`);
+    toast.success(`已导入：${summary}`, {
+      duration: 8000,
+      action: {
+        label: "撤销",
+        // Puts the imported regions back as they were; the rest stay as is.
+        onClick: () => {
+          if (!libRef.current) return;
+          const before = Object.fromEntries(regions.map((r) => [r, lib[r]]));
+          commit({
+            library: { ...libRef.current, ...before },
+            touched: regions,
+          });
+          toast("已撤销导入");
+        },
+      },
+    });
   }
 
   function exportSnapshot() {
