@@ -159,3 +159,45 @@ export function deleteItem(lib: Library, region: Region, id: string): Edit {
     touched: [region],
   };
 }
+
+/** "第41卷" -> "第42卷", "125" -> "126". Null when there is no number to bump. */
+export function bumpProgress(progress: string): string | null {
+  const m = progress.match(/\d+(?:\.\d+)?/);
+  if (!m || m.index === undefined) return null;
+  const next = String(parseFloat(m[0]) + 1);
+  return (
+    progress.slice(0, m.index) + next + progress.slice(m.index + m[0].length)
+  );
+}
+
+/** The +1 button. Bumping something marked 未看 means you have started it. */
+export function bumpItem(
+  lib: Library,
+  region: Region,
+  id: string,
+): Edit | null {
+  const it = lib[region].items.find((x) => x.id === id);
+  const progress = it && bumpProgress(it.progress);
+  if (!it || !progress) return null;
+  const updated: Item = {
+    ...it,
+    progress,
+    watch: it.watch === "未看" ? "看着" : it.watch,
+    updatedAt: nowIso(),
+  };
+  const items = lib[region].items.map((x) => (x.id === id ? updated : x));
+  return { library: withItems(lib, region, items), touched: [region] };
+}
+
+/** Undo for a bump or a delete: puts the exact previous version of an item
+ *  back, at its old position, without disturbing anything edited since. */
+export function restoreItem(
+  lib: Library,
+  region: Region,
+  item: Item,
+  index: number,
+): Edit {
+  const items = lib[region].items.filter((x) => x.id !== item.id);
+  items.splice(Math.min(index, items.length), 0, item);
+  return { library: withItems(lib, region, items), touched: [region] };
+}

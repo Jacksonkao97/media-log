@@ -1,40 +1,50 @@
 @import "tailwindcss";
 
-/* Dark is the default; light follows the system setting. */
+/* Theme tokens. Dark is the default; light follows the system setting.
+ * Every text colour here clears 4.5:1 against --page, --panel and --raised
+ * in its own theme — re-check if you change one. */
 :root {
-  --page: #0f1115;
-  --panel: #161920;
-  --raised: #1d212b;
-  --line: #272c38;
-  --line-soft: #20242e;
-  --ink: #e6e8ee;
-  --ink-dim: #9aa2b4;
-  --ink-faint: #6b7386;
-  --accent: #6ea8fe;
-  --accent-dim: #2b4a7d;
-  --green: #4ec9a5;
-  --amber: #e0b055;
-  --red: #e5786f;
-  --purple: #b48ce6;
+  --page: #0b0c10;
+  --panel: #121319;
+  --raised: #1a1c24;
+  --line: #262935;
+  --line-soft: #1c1e27;
+  --ink: #eceef3;
+  --ink-dim: #a3a8b8;
+  --ink-faint: #848a9b;
+  --accent: #8b8ef9;
+  --accent-ink: #0b0c10;
+  --accent-dim: #24264d;
+  --knob: #2c2f3d;
+  --green: #3ecf8e;
+  --amber: #f2b84b;
+  --red: #f07167;
+  --purple: #b794f6;
+  --sky: #5fb4f5;
+  --scrim: rgb(0 0 0 / 0.6);
   color-scheme: dark;
 }
 
 @media (prefers-color-scheme: light) {
   :root {
-    --page: #f7f8fa;
+    --page: #f6f7f9;
     --panel: #ffffff;
-    --raised: #eef0f5;
-    --line: #dde1e9;
-    --line-soft: #e8ebf1;
-    --ink: #1b1f28;
-    --ink-dim: #5b6376;
-    --ink-faint: #8b93a5;
-    --accent: #2f6fdb;
-    --accent-dim: #c3d6f5;
-    --green: #1e9c78;
-    --amber: #a97a12;
-    --red: #c94b40;
-    --purple: #7d4fc0;
+    --raised: #eef0f4;
+    --line: #e2e5eb;
+    --line-soft: #eceef2;
+    --ink: #14161c;
+    --ink-dim: #4f5566;
+    --ink-faint: #626879;
+    --accent: #4f46e5;
+    --accent-ink: #ffffff;
+    --accent-dim: #e4e4fc;
+    --knob: #ffffff;
+    --green: #0b7651;
+    --amber: #955700;
+    --red: #c9372f;
+    --purple: #7445d6;
+    --sky: #1767c7;
+    --scrim: rgb(15 18 30 / 0.4);
     color-scheme: light;
   }
 }
@@ -49,26 +59,49 @@
   --color-ink-dim: var(--ink-dim);
   --color-ink-faint: var(--ink-faint);
   --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
   --color-accent-dim: var(--accent-dim);
+  --color-knob: var(--knob);
   --color-green: var(--green);
   --color-amber: var(--amber);
   --color-red: var(--red);
   --color-purple: var(--purple);
+  --color-sky: var(--sky);
 
+  /* System CJK fonts first: they are already installed, so nothing is
+   * downloaded. Noto Sans SC covers Android/Linux. */
   --font-sans:
-    system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC",
-    "Hiragino Sans GB", sans-serif;
+    system-ui, -apple-system, "PingFang SC", "HarmonyOS Sans SC", "MiSans",
+    "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC", sans-serif;
   --font-mono:
-    ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+    ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
 }
 
 body {
   background: var(--page);
   color: var(--ink);
-  font: 14px/1.5 var(--font-sans);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
 }
 
 dialog::backdrop {
-  background: rgb(0 0 0 / 0.55);
+  background: var(--scrim);
+}
+
+/* One focus style everywhere; mouse clicks don't show it. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

@@ -1,16 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Undo2 } from "lucide-react";
 
-type Msg = { text: string; error: boolean; id: number };
+export interface ToastOptions {
+  error?: boolean;
+  /** e.g. 撤销 after a delete or a +1. Keeps the toast up longer. */
+  action?: { label: string; run: () => void };
+}
 
-/** Returns [element, show]. Errors stay up longer than confirmations. */
+type Msg = ToastOptions & { text: string; id: number };
+
+/** Returns [element, show]. */
 export function useToast() {
   const [msg, setMsg] = useState<Msg | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const show = useCallback((text: string, error = false) => {
+  const show = useCallback((text: string, opts: ToastOptions = {}) => {
     clearTimeout(timer.current);
-    setMsg({ text, error, id: Date.now() });
-    timer.current = setTimeout(() => setMsg(null), error ? 5000 : 2200);
+    setMsg({ text, ...opts, id: Date.now() });
+    timer.current = setTimeout(
+      () => setMsg(null),
+      opts.error || opts.action ? 5000 : 2200,
+    );
   }, []);
 
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -19,11 +29,25 @@ export function useToast() {
     <div
       key={msg.id}
       role={msg.error ? "alert" : "status"}
-      className={`bg-raised fixed bottom-5 left-1/2 z-60 max-w-[calc(100vw-32px)] -translate-x-1/2 rounded-lg border px-4 py-[9px] text-[13px] shadow-[0_8px_26px_rgba(0,0,0,.4)] ${
-        msg.error ? "border-red text-red" : "border-line"
+      className={`fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-1/2 z-60 flex max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-4 rounded-xl px-4 py-3 text-sm shadow-xl transition duration-200 max-md:bottom-[calc(5.5rem+env(safe-area-inset-bottom))] starting:translate-y-2 starting:opacity-0 ${
+        msg.error ? "bg-red text-page" : "bg-ink text-page"
       }`}
     >
-      {msg.text}
+      <span>{msg.text}</span>
+      {msg.action && (
+        <button
+          type="button"
+          onClick={() => {
+            clearTimeout(timer.current);
+            setMsg(null);
+            msg.action!.run();
+          }}
+          className="-my-1.5 -mr-2 inline-flex h-8 cursor-pointer items-center gap-1 rounded-lg px-2 font-semibold whitespace-nowrap hover:bg-current/15 max-md:h-10"
+        >
+          <Undo2 aria-hidden className="size-4" />
+          {msg.action.label}
+        </button>
+      )}
     </div>
   );
 

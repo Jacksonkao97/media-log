@@ -36,11 +36,20 @@ There is no test runner yet. To check behaviour, drive the running app in a brow
 
 The app is currently a single client-side page: `src/app/page.tsx` renders `src/components/MediaLog.tsx` (`"use client"`), which holds all state. There is no server code yet.
 
+The components under `src/components/`:
+
+- `Chrome.tsx` holds the desktop `Sidebar` and the phone `MobileBar`. Both show the region nav, the save status, and import/export.
+- `LibraryHeader.tsx` has the title, the watch-state tabs, and the search, filter and sort row.
+- `ItemList.tsx` has the rows, the loading skeleton and the empty states.
+- `ItemDialog.tsx` is the add/edit form.
+- `Toast.tsx` shows messages, optionally with an action such as 撤销.
+- `ui.tsx` has the shared primitives.
+
 **`src/lib/schema.ts` is the single source of truth for the data model.**
 
 - It defines the enum lists (`REGIONS`, `CATEGORIES`, `STATUSES`, `WATCHES`) and the types derived from them.
 - `normalise()` is the schema gate. Everything read from storage or an imported file passes through it. Unknown enum values are coerced to defaults, and missing ids or timestamps are filled in.
-- To add a value, change it here. Then add its colour to `TONE` in `src/components/ui.tsx`, which is typed so the compiler flags a missing one. A new region also goes in `tools/migrate.py`'s `REGIONS` and the README.
+- To add a value, change it here. Then give it a look in `src/components/ui.tsx`: categories need an icon and tint in `CATEGORY`, and watch/status values need a colour in `TAG_TONE`. Both are typed, so the compiler flags a missing one. A new region also goes in `tools/migrate.py`'s `REGIONS` and the README.
 
 **The data format must stay compatible with v1.**
 
@@ -50,8 +59,10 @@ The app is currently a single client-side page: `src/app/page.tsx` renders `src/
 
 **Edits are pure functions.**
 
-- `addItem`, `updateItem` and `deleteItem` in `src/lib/items.ts` return `{ library, touched }`.
+- `addItem`, `updateItem`, `deleteItem`, `bumpItem` (the +1 button) and `restoreItem` (undo) in `src/lib/items.ts` return `{ library, touched }`.
 - `MediaLog.commit()` sets the new state and then persists only the `touched` regions. Moving an item between regions touches both.
+- Delete and +1 don't ask for confirmation. Instead they show a toast with 撤销, which calls `restoreItem` to put back the exact previous item at its old position.
+- Handlers that can run after a later render, such as undo, must read `libRef.current` rather than the `library` from their render. `commit()` keeps `libRef` up to date.
 - Drive sync should hook into this same `touched` list instead of re-uploading everything.
 - Persistence (`src/lib/storage.ts`) stores one IndexedDB record per region. Every call is wrapped in a timeout, because in private, hardened, or some headless browsers `indexedDB.open` never settles. When storage is unusable, the app keeps working in memory and says so.
 
@@ -59,13 +70,27 @@ The app is currently a single client-side page: `src/app/page.tsx` renders `src/
 
 - `progress` is free text and sorts by the first number in it. Rows with no number sink to the bottom in both directions.
 - Ties fall back to `zh-Hans-CN` collation of `name`, which sorts by pinyin.
-- Date columns start in descending order.
+- Date sorts start in descending order.
 
-**Styling.**
+**Styling and UX conventions.**
 
-- Tailwind v4. The theme tokens live in `src/app/globals.css` as CSS variables (`--page`, `--panel`, `--raised`, `--line`, `--ink`, `--ink-dim`, `--ink-faint`, `--accent`…) and are exposed as utilities such as `bg-panel`, `text-ink-dim` and `bg-accent/15`. Use the tokens rather than raw colours.
-- Dark is the default, and light follows `prefers-color-scheme`.
-- The phone breakpoint is `max-[720px]`. Below it, the status, category and date columns are hidden, and status and category show as pills under the name.
+- **Tokens.** Tailwind v4. The theme tokens live in `src/app/globals.css` as CSS variables and are exposed as utilities such as `bg-panel`, `text-ink-dim` and `bg-accent/15`. The tokens are `--page`, `--panel`, `--raised`, `--line`, `--ink`, `--ink-dim`, `--ink-faint`, `--accent`, `--accent-ink`, `--knob`, `--green`, `--amber`, `--red`, `--purple` and `--sky`. Use the tokens, never raw colours.
+- **Contrast.** Every text colour clears 4.5:1 against `--page`, `--panel` and `--raised` in both themes. Re-check if you change one.
+- **Themes.** Dark is the default, and light follows `prefers-color-scheme`.
+- **Icons.** All icons come from `lucide-react`. Don't use emoji or unicode glyphs as icons. Decorative icons get `aria-hidden`, and icon-only buttons go through `IconButton`, which requires a `label`.
+- **Colour is never the only signal.** Watch and status show a dot plus the word (`Tag`). Categories differ by icon shape as well as tint (`CategoryTile`).
+- **Phone layout.** The breakpoint is `md` (768px), and phone-only styles use `max-md:`. On phones:
+  - The sidebar becomes `MobileBar`, with region tabs and a ⋯ menu for import/export.
+  - Adding is a floating button.
+  - Category, status and sort sit behind a 筛选 toggle.
+  - The dialog becomes a bottom sheet.
+  - The status and date columns fold into a line under the name.
+- **Phone sizing.**
+  - Tap targets are at least 40px tall, with 8px gaps.
+  - Inputs use 16px text (`max-md:text-base`), because iOS Safari zooms into smaller inputs on focus.
+  - Bars and sheets pad for `env(safe-area-inset-*)`.
+- **Sticky filter bar.** On desktop the filter bar sticks while the list scrolls. For that to work it must be a direct child of `<main>`: `LibraryHeader` returns a fragment for this reason. Wrapping it in a div silently breaks the sticking.
+- **Motion** stays subtle (150–200 ms) and is switched off under `prefers-reduced-motion`.
 
 **Security.** React escapes text. Item `url`s render as links only when they are `http(s)`, because imported files are untrusted.
 
