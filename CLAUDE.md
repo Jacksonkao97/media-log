@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MediaLog is a personal anime / manga / movie tracker. This branch (`v2`) rebuilds it as a Next.js app that will become a public website. The v1 version (plain `index.html` + `app.js`, with edits written to `data/*.json` through the File System Access API) stays on `main` until v2 is merged.
+MediaLog is a personal anime / manga / movie tracker. This is v2, a Next.js rebuild that is becoming a public website; it was merged into `main` before the first deploy. The v1 version (plain `index.html` + `app.js`, with edits written to `data/*.json` through the File System Access API) lives in the history from before that merge.
 
 UI text and the README are Simplified Chinese; code comments are English.
 
@@ -246,7 +246,7 @@ The components under `src/components/`:
 ## Data and tools
 
 - `data/*.json` is the owner's real data. It serves as v1's storage and as the import source for v2.
-  - On `v2` it is untracked and gitignored, so it stays only on the owner's machine. Never commit it again.
-  - It is still in older commits and on `main`, which tracks it. The repo is private, so that is fine. Before making the repo public, purge it from history.
-  - Switching to `main` and back to `v2` deletes the local `data/`, because `main` tracks it and `v2` doesn't. Copy it elsewhere first, or restore it with `git checkout main -- data && git rm -r -q --cached data`.
+  - It is untracked and gitignored, so it stays only on the owner's machine. Never commit it again.
+  - It is still in older commits (v1, and v2 before `chore: stop tracking data/`). The repo is private, so that is fine. Before making the repo public, purge it from history.
+  - Checking out one of those older commits and coming back deletes the local `data/`. Copy it elsewhere first, or restore it with `git checkout 11174de~1 -- data && git rm -r -q --cached data`.
 - `tools/migrate.py` was a one-time `.docx` → JSON importer, and the `.docx` files are not committed. **Do not re-run it.** It regenerates every UUID and overwrites `data/`.
