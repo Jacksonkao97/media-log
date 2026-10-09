@@ -1,7 +1,7 @@
 /* Browser glue for sync: the access token (from the Auth.js session) and the
  * per-account sync state in IndexedDB. */
 
-import { getCsrfToken, getSession } from "next-auth/react";
+import { getCsrfToken } from "next-auth/react";
 import type { Session } from "next-auth";
 import { kvGet, kvSet } from "../storage";
 import type { SyncStore } from "./engine";
@@ -11,6 +11,17 @@ let cached: { token: string; until: number } | null = null;
 
 export function forgetToken() {
   cached = null;
+}
+
+/** The Auth.js session, or null when signed out. next-auth's getSession()
+ *  also returns null when the request fails, so a network that isn't really
+ *  back yet would look like a sign-out. This throws instead: a TypeError when
+ *  the network is down, an Error when the server fails. */
+export async function fetchSession(): Promise<Session | null> {
+  const res = await fetch("/api/auth/session");
+  if (!res.ok) throw new Error(`/api/auth/session: ${res.status}`);
+  const data = (await res.json()) as Session | null;
+  return data && Object.keys(data).length ? data : null;
 }
 
 /** POSTing to the session endpoint runs the jwt callback with trigger
@@ -29,7 +40,7 @@ async function refreshedSession(): Promise<Session | null> {
 /** A Google access token for Drive. `force` asks the server for a new one. */
 export async function getAccessToken(force = false): Promise<string> {
   if (!force && cached && Date.now() < cached.until) return cached.token;
-  const session = force ? await refreshedSession() : await getSession();
+  const session = force ? await refreshedSession() : await fetchSession();
   if (!session?.accessToken || session.error) {
     cached = null;
     throw new AuthError(

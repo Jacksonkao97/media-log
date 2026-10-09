@@ -1,9 +1,20 @@
 import type { Metadata, Viewport } from "next";
+import { PwaProvider } from "@/components/Pwa";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "MediaLog",
   description: "动画 / 漫画 / 电影追踪表",
+  applicationName: "MediaLog",
+  // iOS home-screen app: full screen, content under a translucent status bar
+  // (bars already pad for env(safe-area-inset-top)).
+  appleWebApp: {
+    capable: true,
+    title: "MediaLog",
+    statusBarStyle: "black-translucent",
+  },
+  // Don't turn episode numbers into phone links on iOS.
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
@@ -18,7 +29,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="zh-Hans">
-      <body>{children}</body>
+      <body>
+        <PwaProvider>{children}</PwaProvider>
+      </body>
     </html>
   );
 }

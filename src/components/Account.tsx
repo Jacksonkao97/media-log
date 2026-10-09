@@ -117,7 +117,7 @@ export function AccountCard({
         <StatusDot storage={storage} sync={sync} withText />
         <Button variant="outline" onClick={sync.signIn} className="w-full">
           <Cloud aria-hidden />
-          登录 Google，同步到 Drive
+          登录 Google 同步
         </Button>
       </div>
     );

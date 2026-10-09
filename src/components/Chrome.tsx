@@ -1,8 +1,15 @@
 /* App chrome: the desktop sidebar and the phone top bar. Both show the same
  * things — regions, where data lives (browser / Google Drive), the account,
- * import/export — laid out for their screen. */
+ * import/export, installing the app — laid out for their screen. */
 
-import { Download, Ellipsis, Library, Upload } from "lucide-react";
+import {
+  Download,
+  Ellipsis,
+  Library,
+  MonitorDown,
+  SquarePlus,
+  Upload,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,6 +21,7 @@ import {
 import { REGIONS, type Library as Lib, type Region } from "@/lib/schema";
 import { cn } from "@/lib/utils";
 import { AccountCard, StatusDot, SyncMenuItems } from "./Account";
+import type { Install } from "./Pwa";
 import type { DriveSync } from "./useDriveSync";
 
 export type StorageState =
@@ -24,6 +32,7 @@ interface Props {
   region: Region;
   storage: StorageState;
   sync: DriveSync;
+  install: Install;
   onRegion: (r: Region) => void;
   onImport: () => void;
   onExport: () => void;
@@ -48,12 +57,13 @@ export function Sidebar({
   region,
   storage,
   sync,
+  install,
   onRegion,
   onImport,
   onExport,
 }: Props) {
   return (
-    <aside className="bg-card sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r px-3 py-5 md:flex">
+    <aside className="bg-card sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r px-3 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))] md:flex">
       <div className="px-2">
         <Brand />
       </div>
@@ -116,6 +126,16 @@ export function Sidebar({
             导出
           </Button>
         </div>
+        {install.mode && (
+          <Button
+            variant="ghost"
+            onClick={install.install}
+            className="text-muted-foreground w-full justify-start"
+          >
+            <MonitorDown aria-hidden />
+            安装应用
+          </Button>
+        )}
       </div>
     </aside>
   );
@@ -126,6 +146,7 @@ export function MobileBar({
   region,
   storage,
   sync,
+  install,
   onRegion,
   onImport,
   onExport,
@@ -167,6 +188,15 @@ export function MobileBar({
               <Download aria-hidden className="size-[18px]" />
               导出备份
             </DropdownMenuItem>
+            {install.mode && (
+              <DropdownMenuItem
+                onSelect={install.install}
+                className="h-11 gap-3 text-[15px]"
+              >
+                <SquarePlus aria-hidden className="size-[18px]" />
+                安装到主屏幕
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

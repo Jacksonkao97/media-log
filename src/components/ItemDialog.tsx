@@ -37,7 +37,12 @@ import { CATEGORY } from "./media";
 import { Segmented } from "./Segmented";
 
 /** What the dialog is for: a new item in `region`, or editing `item` that lives in `region`. */
-export type DialogTarget = { region: Region; item: Item | null };
+export type DialogTarget = {
+  region: Region;
+  item: Item | null;
+  /** For a new item: fields to start with (from a share or shortcut). */
+  prefill?: Partial<ItemFields>;
+};
 
 interface Props {
   /** Kept after closing, so the closing animation still shows the form. */
@@ -105,7 +110,7 @@ export function ItemDialog({
   );
 }
 
-function initialFields({ item, region }: DialogTarget): ItemFields {
+function initialFields({ item, region, prefill }: DialogTarget): ItemFields {
   return {
     name: item?.name ?? "",
     progress: item?.progress ?? "",
@@ -114,6 +119,7 @@ function initialFields({ item, region }: DialogTarget): ItemFields {
     category: item?.category ?? (region === "欧美" ? "电影" : "动画"),
     url: item?.url ?? "",
     note: item?.note ?? "",
+    ...(item ? {} : prefill),
   };
 }
 

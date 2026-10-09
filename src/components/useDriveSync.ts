@@ -5,14 +5,23 @@
  *   - shortly after every local edit (debounced, only the touched regions),
  *   - when the tab comes back into view, every 5 minutes while visible, and
  *     when the browser comes back online.
- * Exposes a status for the UI and sign-in/out actions. */
+ * Exposes a status for the UI and sign-in/out actions.
+ *
+ * Started offline (the installed app opened with no signal), the session
+ * can't be fetched. The last signed-in account is remembered so the UI shows
+ * it as offline rather than signed out, and connects once back online. */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getSession, signIn, signOut } from "next-auth/react";
+import { signIn, signOut } from "next-auth/react";
 import { toast } from "sonner";
 import { withTabLock } from "@/lib/tabs";
 import type { Library, Region, RegionFile } from "@/lib/schema";
-import { getAccessToken, forgetToken, idbSyncStore } from "@/lib/sync/client";
+import {
+  fetchSession,
+  forgetToken,
+  getAccessToken,
+  idbSyncStore,
+} from "@/lib/sync/client";
 import { SyncEngine, type SyncReport } from "@/lib/sync/engine";
 import {
   AuthError,
@@ -53,6 +62,27 @@ const DEBOUNCE_MS = 1500;
 const POLL_MS = 5 * 60_000;
 const REFOCUS_MS = 60_000;
 
+/** Who was signed in last: name, email and avatar only, never a token. */
+const ACCOUNT_KEY = "medialog:account";
+
+const lastAccount = {
+  get(): Account | null {
+    try {
+      return JSON.parse(localStorage.getItem(ACCOUNT_KEY) ?? "null");
+    } catch {
+      return null;
+    }
+  },
+  set(account: Account | null) {
+    try {
+      if (account) localStorage.setItem(ACCOUNT_KEY, JSON.stringify(account));
+      else localStorage.removeItem(ACCOUNT_KEY);
+    } catch {
+      // Storage blocked: an offline start just shows "signed out".
+    }
+  },
+};
+
 const today = () => {
   const d = new Date();
   const p = (n: number) => String(n).padStart(2, "0");
@@ -81,6 +111,10 @@ export function useDriveSync({
   const [lastSynced, setLastSynced] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [folderUrl, setFolderUrl] = useState<string | null>(null);
+  /** Bumped to look up the session again after an offline start. */
+  const [connectAttempt, setConnectAttempt] = useState(0);
+  /** Showing the remembered account because the session couldn't be fetched. */
+  const unconnected = useRef(false);
 
   const engine = useRef<SyncEngine | null>(null);
   const drive = useRef<GoogleDrive | null>(null);
@@ -148,19 +182,29 @@ export function useDriveSync({
   useEffect(() => {
     if (!enabled || !ready) return;
     let cancelled = false;
-    getSession()
+    lastAttempt.current = Date.now();
+    // Offline the request can only fail (the service worker never caches it).
+    (navigator.onLine
+      ? fetchSession()
+      : Promise.reject(new TypeError("offline"))
+    )
       .then((session) => {
         if (cancelled) return;
+        unconnected.current = false;
         const email = session?.user?.email;
         if (!session || !email) {
+          lastAccount.set(null);
+          setAccount(null);
           setStatus("signed-out");
           return;
         }
-        setAccount({
+        const current = {
           name: session.user?.name ?? null,
           email,
           image: session.user?.image ?? null,
-        });
+        };
+        setAccount(current);
+        lastAccount.set(current);
         drive.current = googleDrive(getAccessToken);
         engine.current = new SyncEngine({
           remote: drive.current,
@@ -182,6 +226,19 @@ export function useDriveSync({
       })
       .catch((err) => {
         if (cancelled) return;
+        // No network (or not really back yet): show who was signed in, as
+        // offline, and try again later. Edits stay local until then.
+        const last = err instanceof TypeError ? lastAccount.get() : null;
+        if (last) {
+          unconnected.current = true;
+          setAccount(last);
+          setStatus("offline");
+          return;
+        }
+        if (err instanceof TypeError) {
+          setStatus("signed-out");
+          return;
+        }
         console.error(err);
         setStatus("error");
         setError("无法获取登录状态：服务器的登录配置可能有误（见服务器日志）");
@@ -189,22 +246,26 @@ export function useDriveSync({
     return () => {
       cancelled = true;
     };
-  }, [enabled, ready, getLocal, setLocal, run]);
+  }, [enabled, ready, getLocal, setLocal, run, connectAttempt]);
 
   /* Keep other devices' changes coming in. */
   useEffect(() => {
     if (!enabled) return;
+    // Started offline there is no engine yet: look up the session first.
+    const go = () =>
+      unconnected.current ? setConnectAttempt((n) => n + 1) : void run();
     const maybe = () => {
       if (
         document.visibilityState === "visible" &&
         Date.now() - lastAttempt.current > REFOCUS_MS
       )
-        void run();
+        go();
     };
-    const online = () => void run();
+    const online = () =>
+      engine.current ? void run() : setConnectAttempt((n) => n + 1);
     const offline = () => engine.current && setStatus("offline");
     const poll = setInterval(
-      () => document.visibilityState === "visible" && void run(),
+      () => document.visibilityState === "visible" && go(),
       POLL_MS,
     );
     document.addEventListener("visibilitychange", maybe);
@@ -243,10 +304,24 @@ export function useDriveSync({
     error,
     folderUrl,
     schedule,
-    syncNow: useCallback(() => void run(undefined, true), [run]),
+    syncNow: useCallback(
+      () =>
+        unconnected.current
+          ? setConnectAttempt((n) => n + 1)
+          : void run(undefined, true),
+      [run],
+    ),
     signIn: useCallback(() => void signIn("google"), []),
     signOut: useCallback(async () => {
-      await signOut({ redirect: false });
+      try {
+        await signOut({ redirect: false });
+      } catch (err) {
+        console.error(err);
+        toast.error("退出登录失败，请联网后再试");
+        return;
+      }
+      lastAccount.set(null);
+      unconnected.current = false;
       forgetToken();
       engine.current = null;
       drive.current = null;

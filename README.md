@@ -22,6 +22,8 @@ npm run dev
 
 想在手机、电脑之间同步？登录 Google 后会自动同步到你自己的 Google Drive，见下面「Google Drive 同步设置」。
 
+想装到手机主屏幕上？见下面「安装到手机 / 电脑」。
+
 ## 功能
 
 - **区域** —— 日本 / 中国 / 韩国 / 欧美；电脑上在左侧栏，手机上在顶部标签
@@ -33,6 +35,7 @@ npm run dev
 - **新增 / 编辑** —— 点任意一行即可编辑；改「区域」会把作品搬到另一个区域
 - **手机友好** —— 底部弹出的编辑面板（可以下滑关闭）、右下角新增按钮、按钮都够大好点
 - **Google Drive 同步** —— 多台设备自动同步，每天一份快照（见下文）
+- **可以安装** —— 装到手机主屏幕或电脑上，像 App 一样全屏打开；没网也能看、能改，联网后自动同步
 - 跟随系统深色 / 浅色
 
 ## 开发
@@ -40,17 +43,18 @@ npm run dev
 界面用 [shadcn/ui](https://ui.shadcn.com)（组件源码在 `src/components/ui/`）和 [Motion](https://motion.dev) 做动画。
 
 ```bash
-npm test               # 单元测试（同步合并逻辑）
+npm test               # 单元测试（同步合并逻辑、启动参数）
 npm run build          # 生产构建
 npm run lint           # ESLint
 npm run format         # Prettier（不会动 data/）
+node scripts/generate-icons.mjs   # 重新生成应用图标
 ```
 
 ## 路线图
 
 1. ~~把旧版界面搬到 Next.js~~ ✅
 2. ~~Google 登录 + 自动同步到 Drive（四个区域文件 + 每天一份带日期的快照）~~ ✅
-3. 做成可安装的 PWA，手机上像 App 一样用
+3. ~~做成可安装的 PWA，手机上像 App 一样用，离线也能打开~~ ✅
 4. 新番 / 新电影资讯（AniList、TMDB）
 5. 追更提醒（新一集 / 网站更新时通知）
 6. 公开上线
@@ -121,6 +125,24 @@ npm run format         # Prettier（不会动 data/）
 - 一边删除、另一边没动 → 删除
 - 一边删除、另一边**修改过** → 保留修改（宁可留下一条也不丢改动）
 
+## 安装到手机 / 电脑
+
+- **Android、电脑上的 Chrome / Edge**：点左下角的 **安装应用**（手机上在右上角 ⋯ 菜单里，叫 **安装到主屏幕**），或者用浏览器自己的「安装」按钮。
+- **iPhone / iPad**：要用 **Safari** 打开，点工具栏的 **分享** → **添加到主屏幕**。⋯ 菜单里的 **安装到主屏幕** 会给出同样的步骤。
+
+装好以后：
+
+- **离线也能用**：打开过一次之后，没网也能打开、查看、修改；改动先存在本机，联网后自动同步。
+- **新增作品快捷方式**：在主屏幕上长按图标，选「新增作品」，直接打开新增窗口。
+- **从别的 App 分享**（Android）：在浏览器或其他 App 里分享一个网页，选 MediaLog，会带着标题和链接打开新增窗口。
+- **更新**：发布新版本后，打开应用会提示「MediaLog 有新版本」，点 **刷新** 即可。
+
+**注意：**
+
+- 必须通过 **HTTPS** 访问（本机的 `localhost` 除外）才能安装和离线使用。手机用局域网地址 `http://192.168.x.x:3000` 打开时不行，要等部署到网上（比如 Vercel）之后。
+- `npm run dev` 开发模式下不启用离线缓存。想在电脑上试安装和离线，用 `npm run build && npm start`。
+- iPhone 上装到主屏幕的应用和 Safari **不共用数据**，第一次打开是空的：在应用里登录 Google 同步一次（或者导入备份）就回来了。
+
 ## Google Drive 同步设置
 
 一次性的，大约 10 分钟。如果旧版 v1 用过 Drive 备份，**用同一个 Google Cloud 项目**最省事 —— 应用能找到 v1 建的 `MediaLog` 文件夹，第一次同步时会把里面的数据合并进来。
@@ -143,7 +165,7 @@ npm run format         # Prettier（不会动 data/）
    AUTH_GOOGLE_SECRET= # Client secret
    ```
    `.env.local` 不会被提交到 git。
-6. `npm run dev`，打开 `http://localhost:3000`，点左下角 **登录 Google，同步到 Drive**
+6. `npm run dev`，打开 `http://localhost:3000`，点左下角 **登录 Google 同步**
 
 **注意：**
 

@@ -14,7 +14,7 @@ UI text and the README are Simplified Chinese; code comments are English.
 
 1. Port the v1 UI to Next.js, storing data in the browser (done).
 2. Google sign-in plus automatic Drive sync: the four region files, plus a daily dated snapshot, because Drive only keeps old versions for about 30 days (done).
-3. Make it an installable PWA so it works on phones.
+3. Make it an installable PWA so it works on phones, including offline (done).
 4. "Latest anime/movies" using AniList (anime/manga, including airing schedules) and TMDB (movies).
 5. Episode/site trackers with notifications, which need a server-side scheduled job. Vercel's free plan only runs cron once a day.
 6. Go public, keeping each user's data in their own Google Drive.
@@ -28,8 +28,10 @@ npm run build          # production build; also generates route types such as La
 npm run lint           # ESLint (next lint no longer exists in Next 16)
 npm run format         # Prettier; data/ is excluded via .prettierignore
 npx tsc --noEmit       # typecheck; needs a build or `next dev` first for the generated types
-npm test               # Vitest: src/**/*.test.ts (the sync merge and engine)
+npx tsc --noEmit -p src/sw   # typecheck the service worker (its own tsconfig, webworker lib)
+npm test               # Vitest: src/**/*.test.ts (sync merge and engine, launch params)
 npx vitest run src/lib/sync/merge.test.ts -t "newer edit"   # one file / one test
+node scripts/generate-icons.mjs   # regenerate every app icon (sharp); edit this, not the PNGs
 ```
 
 Vitest covers pure logic only. To check UI behaviour, drive the running app in a browser. Some Playwright pitfalls:
@@ -38,6 +40,8 @@ Vitest covers pure logic only. To check UI behaviour, drive the running app in a
 - The editor is a Radix `role="dialog"`, not a native `<dialog>`.
 - Single-choice toggle groups are `role="radiogroup"` with `radio` items. The multi-select chip groups are `role="toolbar"` with `aria-pressed` buttons.
 - To test sync without real Google, build and start with placeholder env (`AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, plus `AUTH_TRUST_HOST=true` for `next start`). Then use `context.route` to answer `/api/auth/session` (a session with `accessToken`), `/api/auth/csrf` and `/api/auth/signout`, and serve `https://www.googleapis.com/**` from an in-memory Drive. Use one route handler per browser context, sharing one fake Drive to simulate several devices.
+- A production build runs the service worker, and Drive calls then go through it. Playwright only routes, and applies `setOffline` to, service-worker requests when run with `PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1`. Without it the fake Drive is bypassed.
+- To check installability, call CDP `Page.getInstallabilityErrors` through `context.newCDPSession(page)`. To test the install button, dispatch a synthetic `beforeinstallprompt` `Event` with `prompt` and `userChoice` attached. iOS needs an iPhone user agent; fake standalone mode by defining `Navigator.prototype.standalone` in an init script.
 
 **Installing packages.** npm 10's resolver can crash with `Cannot read properties of null (reading 'edgesOut')` while resolving optional peer loops, as Vitest's do. If `npm install <pkg>` hits that, retry with `--legacy-peer-deps`. A plain `npm install`/`npm ci` from the lockfile works.
 
@@ -49,7 +53,7 @@ The app is a single client-side page: `src/app/page.tsx` renders `src/components
 
 The components under `src/components/`:
 
-- `Chrome.tsx` holds the desktop `Sidebar` and the phone `MobileBar`. Both show the region nav, the save/sync status, the account (from `Account.tsx`), and import/export.
+- `Chrome.tsx` holds the desktop `Sidebar` and the phone `MobileBar`. Both show the region nav, the save/sync status, the account (from `Account.tsx`), import/export, and the install entry (from `Pwa.tsx`).
 - `LibraryHeader.tsx` has the title, the watch-state tabs, and the search, filter and sort row.
 - `ItemList.tsx` has the rows, the loading skeleton and the empty states.
 - `ItemDialog.tsx` is the add/edit form. It is a shadcn `Dialog` on desktop and a vaul `Drawer` (swipe-to-dismiss bottom sheet) on phones. `MediaLog` keeps the edit target separate from the open flag, so the closing animation still has content to show.
@@ -106,6 +110,32 @@ The components under `src/components/`:
   - Syncs run under a Web Lock, so only one tab syncs at a time.
   - Without both, a tab with a stale copy would save, or sync, it over another tab's edits.
 - The engine is tested against an in-memory fake `Remote` (`engine.test.ts`). Keep it free of React and browser APIs.
+
+**Installable app (PWA)** (`src/app/manifest.ts`, `src/sw/`, `src/app/serwist/`, `src/components/Pwa.tsx`).
+
+- **Manifest and icons.**
+  - `manifest.ts` declares a 新增作品 shortcut (`/?new=1`) and a GET `share_target` on `/`. On Android, sharing a page to the app opens the editor with its title and link filled in.
+  - `scripts/generate-icons.mjs` draws every icon (lucide's `library` glyph on the brand indigo). That covers `public/icons/` (any, maskable, shortcut) plus `src/app/icon.svg` and `src/app/apple-icon.png`.
+- **Service worker** (Serwist).
+  - `src/sw/sw.ts` is bundled by `createSerwistRoute` in `src/app/serwist/[path]/route.ts` and prerendered at build to `/serwist/sw.js` (with `Service-Worker-Allowed: /`).
+  - It has its own `tsconfig.json`, and the root one excludes `src/sw`.
+  - It precaches the build output plus `/`. The `/` entry gets a random revision per build, so every deploy is a worker update.
+  - `ignoreURLParametersMatching: [/.*/]` lets `/?new=1` and share URLs hit the precached page.
+  - Google hosts are NetworkOnly. **Never cache `/api/auth/*`**, because the session carries the access token. Serwist's `defaultCache` already makes it NetworkOnly.
+- **Registration** (`PwaProvider`, wrapped around the app in `layout.tsx`).
+  - The worker registers in production only. `next dev` runs without one, so test offline and install with `build` + `start`.
+  - It uses `skipWaiting` + `clientsClaim`. When a new version takes control, `UpdateNotice` shows a toast with a 刷新 action that reloads; it doesn't reload by itself, because that would lose an open edit.
+  - Service workers need HTTPS or `localhost`. A phone on the LAN over `http://` gets neither install nor offline.
+- **Install UI** (`useInstall`).
+  - Chromium's `beforeinstallprompt` is captured at module load, since it can fire before React mounts. It shows 安装应用 in the sidebar and 安装到主屏幕 in the phone ⋯ menu.
+  - iOS has no API, so `IosInstallDialog` explains Share → 添加到主屏幕.
+  - Nothing is offered when the app already runs standalone.
+  - An app installed on iOS has storage separate from Safari, so it starts empty until you sign in or import.
+- **Launch URLs.** `launchDraft()` (`src/lib/launch.ts`) turns `new`/`title`/`text`/`url` into a prefill (`DialogTarget.prefill`). It keeps only `http(s)` links. `MediaLog` reads it once after the library loads, then strips the query with `history.replaceState`.
+- **Offline start** (`useDriveSync`).
+  - The last signed-in account is kept in `localStorage` (`medialog:account`): name, email and image, never tokens. When the session can't be fetched, the app shows that account as offline rather than signed out. It reconnects on `online`, on the poll, or on 立即同步.
+  - Sign-out clears the cached account.
+  - Session lookups use `fetchSession()` from `lib/sync/client.ts`, not next-auth's `getSession()`. `getSession()` returns `null` for a failed request too, so a network blip would look like a sign-out, or would make `getAccessToken` ask for re-login. `fetchSession()` instead throws a `TypeError` when offline and an `Error` when the server fails.
 
 **Sorting quirks are intentional** and match v1:
 

@@ -43,6 +43,7 @@ import {
   type RegionFile,
 } from "@/lib/schema";
 import { loadLibrary, saveRegion } from "@/lib/storage";
+import { launchDraft } from "@/lib/launch";
 import { openTabChannel } from "@/lib/tabs";
 import {
   downloadJson,
@@ -51,6 +52,7 @@ import {
   type Imported,
 } from "@/lib/transfer";
 import { MobileBar, Sidebar, type StorageState } from "./Chrome";
+import { IosInstallDialog, useInstall } from "./Pwa";
 import { useDriveSync } from "./useDriveSync";
 import { ItemDialog, type DialogTarget } from "./ItemDialog";
 import { EmptyState, ItemList, ListSkeleton, type Flash } from "./ItemList";
@@ -108,6 +110,7 @@ export function MediaLog({ syncEnabled }: { syncEnabled: boolean }) {
     });
     return () => tabs.current?.close();
   }, []);
+  const install = useInstall();
   const sync = useDriveSync({
     enabled: syncEnabled,
     ready: library !== null,
@@ -120,12 +123,21 @@ export function MediaLog({ syncEnabled }: { syncEnabled: boolean }) {
 
   useEffect(() => {
     let cancelled = false;
+    /** Launched from the 新增 shortcut or a share: open a pre-filled editor. */
+    const handleLaunch = () => {
+      const draft = launchDraft(new URLSearchParams(location.search));
+      if (location.search) history.replaceState(null, "", location.pathname);
+      if (!draft) return;
+      setDialog({ region: REGIONS[0], item: null, prefill: draft });
+      setDialogOpen(true);
+    };
     loadLibrary()
       .then((lib) => {
         if (cancelled) return;
         libRef.current = lib;
         setLibrary(lib);
         setStorage("saved");
+        handleLaunch();
       })
       .catch((err) => {
         if (cancelled) return;
@@ -134,6 +146,7 @@ export function MediaLog({ syncEnabled }: { syncEnabled: boolean }) {
         setLibrary(libRef.current);
         setStorage("unavailable");
         toast.error("浏览器存储不可用（隐私模式？），改动不会被保存");
+        handleLaunch();
       });
     return () => {
       cancelled = true;
@@ -411,6 +424,7 @@ export function MediaLog({ syncEnabled }: { syncEnabled: boolean }) {
     onRegion: setRegion,
     onImport: pickFiles,
     onExport: exportSnapshot,
+    install,
   };
 
   return (
@@ -481,6 +495,7 @@ export function MediaLog({ syncEnabled }: { syncEnabled: boolean }) {
               if (files.length) importFiles(files);
             }}
           />
+          <IosInstallDialog install={install} />
           <ItemDialog
             target={dialog}
             open={dialogOpen}
