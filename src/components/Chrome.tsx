@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FEED_IDS, type FeedId } from "@/lib/discover/feeds";
 import { REGIONS, type Library as Lib, type Region } from "@/lib/schema";
+import { REMINDERS_ENABLED } from "@/lib/track/enabled";
 import { cn } from "@/lib/utils";
 import type { Section } from "@/lib/view";
 import { AccountCard, StatusDot, SyncMenuItems, isSignedIn } from "./Account";
@@ -198,36 +199,42 @@ export function Sidebar({
         </ul>
       </nav>
 
-      <div className="mt-auto flex flex-col px-1 pb-3">
-        <Button
-          variant="ghost"
-          onClick={() => reminders.setOpen(true)}
-          className="text-muted-foreground w-full justify-start"
-        >
-          {remindersOn ? <BellRing aria-hidden /> : <Bell aria-hidden />}
-          更新提醒
-          {remindersOn && (
-            <span className="text-faint ml-auto text-xs">已开启</span>
-          )}
-        </Button>
-        {install.mode && (
-          <Button
-            variant="ghost"
-            onClick={install.install}
-            className="text-muted-foreground w-full justify-start"
-          >
-            <MonitorDown aria-hidden />
-            安装应用
-          </Button>
+      <div className="mt-auto">
+        {(REMINDERS_ENABLED || install.mode) && (
+          <div className="flex flex-col px-1 pb-3">
+            {REMINDERS_ENABLED && (
+              <Button
+                variant="ghost"
+                onClick={() => reminders.setOpen(true)}
+                className="text-muted-foreground w-full justify-start"
+              >
+                {remindersOn ? <BellRing aria-hidden /> : <Bell aria-hidden />}
+                更新提醒
+                {remindersOn && (
+                  <span className="text-faint ml-auto text-xs">已开启</span>
+                )}
+              </Button>
+            )}
+            {install.mode && (
+              <Button
+                variant="ghost"
+                onClick={install.install}
+                className="text-muted-foreground w-full justify-start"
+              >
+                <MonitorDown aria-hidden />
+                安装应用
+              </Button>
+            )}
+          </div>
         )}
-      </div>
 
-      <div className="border-t px-1 pt-4">
-        <AccountCard
-          sync={sync}
-          storage={storage}
-          transfer={{ onImport, onExport, disabled: !library }}
-        />
+        <div className="border-t px-1 pt-4">
+          <AccountCard
+            sync={sync}
+            storage={storage}
+            transfer={{ onImport, onExport, disabled: !library }}
+          />
+        </div>
       </div>
     </aside>
   );
@@ -281,9 +288,11 @@ export function MobileBar({
               transfer={{ onImport, onExport, disabled: !library }}
               phone
             />
-            {sync.status !== "disabled" && sync.status !== "checking" && (
-              <DropdownMenuSeparator />
-            )}
+            {sync.status !== "disabled" &&
+              sync.status !== "checking" &&
+              (!isSignedIn(sync) || REMINDERS_ENABLED || install.mode) && (
+                <DropdownMenuSeparator />
+              )}
             {!isSignedIn(sync) && (
               <>
                 <DropdownMenuItem
@@ -302,20 +311,22 @@ export function MobileBar({
                 </DropdownMenuItem>
               </>
             )}
-            <DropdownMenuItem
-              onSelect={() => reminders.setOpen(true)}
-              className="h-11 gap-3 text-[15px]"
-            >
-              {reminders.state === "on" ? (
-                <BellRing aria-hidden className="size-[18px]" />
-              ) : (
-                <Bell aria-hidden className="size-[18px]" />
-              )}
-              更新提醒
-              {reminders.state === "on" && (
-                <span className="text-faint ml-auto text-xs">已开启</span>
-              )}
-            </DropdownMenuItem>
+            {REMINDERS_ENABLED && (
+              <DropdownMenuItem
+                onSelect={() => reminders.setOpen(true)}
+                className="h-11 gap-3 text-[15px]"
+              >
+                {reminders.state === "on" ? (
+                  <BellRing aria-hidden className="size-[18px]" />
+                ) : (
+                  <Bell aria-hidden className="size-[18px]" />
+                )}
+                更新提醒
+                {reminders.state === "on" && (
+                  <span className="text-faint ml-auto text-xs">已开启</span>
+                )}
+              </DropdownMenuItem>
+            )}
             {install.mode && (
               <DropdownMenuItem
                 onSelect={install.install}

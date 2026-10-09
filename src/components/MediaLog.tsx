@@ -46,6 +46,7 @@ import {
   type RegionFile,
 } from "@/lib/schema";
 import { loadLibrary, saveRegion } from "@/lib/storage";
+import { REMINDERS_ENABLED } from "@/lib/track/enabled";
 import { launchDraft } from "@/lib/launch";
 import { openTabChannel } from "@/lib/tabs";
 import {
@@ -644,7 +645,9 @@ export function MediaLog({
             }}
           />
           <IosInstallDialog install={install} />
-          <RemindersDialog reminders={reminders} install={install} />
+          {REMINDERS_ENABLED && (
+            <RemindersDialog reminders={reminders} install={install} />
+          )}
           <ItemDialog
             target={dialog}
             open={dialogOpen}

@@ -17,6 +17,7 @@ import {
   pushConfig,
   type PushConfig,
 } from "@/lib/track/config";
+import { REMINDERS_ENABLED } from "@/lib/track/enabled";
 import { runCheck } from "@/lib/track/engine";
 import { fetchAired } from "@/lib/track/episodes";
 import { fetchComic } from "@/lib/track/manhuagui";
@@ -154,6 +155,7 @@ async function route(
   req: NextRequest,
   ctx: RouteContext<"/api/track/[action]">,
 ) {
+  if (!REMINDERS_ENABLED) return fail(404, "更新提醒暂时关闭");
   const { action } = await ctx.params;
   const cfg = pushConfig();
   const store = getStore();

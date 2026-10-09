@@ -6,6 +6,7 @@
  * plus a store (store.ts). Kept apart from push.ts so the page can ask
  * without loading web-push. */
 
+import { REMINDERS_ENABLED } from "./enabled";
 import { storeKind } from "./store";
 
 export interface PushConfig {
@@ -32,8 +33,9 @@ export function mangaEveryMs(): number {
 }
 
 /** The VAPID public key the browser subscribes with, or null when the server
- *  can't send reminders (no keys, or no store). */
+ *  can't send reminders (switched off, no keys, or no store). */
 export function trackPublicKey(): string | null {
+  if (!REMINDERS_ENABLED) return null;
   const cfg = pushConfig();
   return cfg && storeKind() ? cfg.publicKey : null;
 }

@@ -65,7 +65,7 @@ The app is one client-side component: `src/app/[[...view]]/page.tsx` renders `sr
 The components under `src/components/`:
 
 - `Chrome.tsx` holds the desktop `Sidebar` and the phone `MobileBar`. Both show the region and 发现 nav, the save/sync status, the account (from `Account.tsx`), import/export, 更新提醒 and the install entry (from `Pwa.tsx`).
-  - At the bottom of the sidebar, 更新提醒 and 安装应用 sit above the account card.
+  - At the bottom of the sidebar, 更新提醒 and 安装应用 sit above the account card. With 更新提醒 switched off (`REMINDERS_ENABLED`) and nothing to install, that block isn't rendered.
   - Import/export follow sign-in (`isSignedIn` in `Account.tsx`). Signed out, they are buttons under 登录 Google 同步. Signed in, they are entries in the account's ⋯ menu, right under 立即同步. The phone ⋯ menu follows the same rule.
   - While the session is still `checking`, the signed-out layout shows. It is about as tall as the signed-in card, so the sidebar doesn't jump.
 - `useBackupReminder.ts` suggests 导出备份 to anyone not signed in, once 30 days have passed without an export, then again weekly until they export. It counts from `localStorage` `medialog:backup`: the last export, or the first check. `lib/backup.ts` holds the timing.
@@ -170,6 +170,8 @@ The components under `src/components/`:
 - **Testing.** Normalisers, paging and errors are tested against a stubbed `fetch` with fixtures shaped like the documented schemas. They were written without access to the live APIs, so check against the real ones when you can.
 
 **更新提醒** (`src/lib/track/`, `src/app/api/track/[action]/route.ts`, `src/components/useReminders.ts`, `Reminders.tsx`, the push handlers in `src/sw/sw.ts`).
+
+- **Switched off for now.** `REMINDERS_ENABLED` in `src/lib/track/enabled.ts` is `false` until subscribing has real limits or sign-in (see below). While it is false, the API answers 404, `trackPublicKey()` returns null, and the sidebar and phone menu hide the entry and `RemindersDialog`. All the code below stays in place; flipping the constant brings it back.
 
 - **What is followed** (`targets.ts`). Items whose watch state is 看着: 动画 with an AniList link (target `anilist:<id>`) and 漫画 with a manhuagui link on any of its hosts (target `manhuagui:<id>`). The browser derives the list (`followsOf`) and sends it. The server never sees the rest of the library, and it stores only targets, names and progress (for the notification text) per device.
 - **Devices.** A device is identified only by its push subscription; there is no sign-in. Its id is a hash of the endpoint (`subscriberId`). `useReminders` re-sends the follow list 3 s after it changes, and at least daily, using a fingerprint in `localStorage` (`medialog:reminders`). If `/status` or `/test` answers 404 because the server lost the device, it registers again.
