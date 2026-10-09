@@ -2,7 +2,8 @@
 
 /* MediaLog — the whole app. The library lives in this component's state and
  * is persisted region-by-region to IndexedDB (lib/storage.ts) after every
- * edit. Only the regions an edit touched are rewritten. */
+ * edit. Only the regions an edit touched are rewritten. The 发现 section
+ * (Discover.tsx) shows what's new and adds to the same library. */
 
 import {
   useCallback,
@@ -31,6 +32,8 @@ import {
   type SortDir,
   type SortKey,
 } from "@/lib/items";
+import type { FeedId } from "@/lib/discover/feeds";
+import { toStatus } from "@/lib/discover/types";
 import { fmtDate } from "@/lib/format";
 import {
   REGIONS,
@@ -51,7 +54,8 @@ import {
   snapshot,
   type Imported,
 } from "@/lib/transfer";
-import { MobileBar, Sidebar, type StorageState } from "./Chrome";
+import { MobileBar, Sidebar, type Section, type StorageState } from "./Chrome";
+import { Discover, type PickWork } from "./Discover";
 import { IosInstallDialog, useInstall } from "./Pwa";
 import { useDriveSync } from "./useDriveSync";
 import { ItemDialog, type DialogTarget } from "./ItemDialog";
@@ -64,11 +68,20 @@ const noFilters = (): Filters => ({
   watch: new Set(),
 });
 
-/** `syncEnabled`: Google sign-in is configured on this server (see src/auth.ts). */
-export function MediaLog({ syncEnabled }: { syncEnabled: boolean }) {
+/** `syncEnabled`: Google sign-in is configured on this server (see src/auth.ts).
+ *  `moviesEnabled`: so is TMDB, for the 电影 feed (TMDB_API_KEY). */
+export function MediaLog({
+  syncEnabled,
+  moviesEnabled,
+}: {
+  syncEnabled: boolean;
+  moviesEnabled: boolean;
+}) {
   const [library, setLibrary] = useState<Library | null>(null);
   const [storage, setStorage] = useState<StorageState>("loading");
+  const [section, setSection] = useState<Section>("library");
   const [region, setRegion] = useState<Region>(REGIONS[0]);
+  const [feed, setFeed] = useState<FeedId>("airing");
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [query, setQuery] = useState("");
@@ -264,7 +277,15 @@ export function MediaLog({ syncEnabled }: { syncEnabled: boolean }) {
     setRegion(target);
     // A new item is the last one in its region.
     flashRow(dialog.item?.id ?? edit.library[target].items.at(-1)!.id);
-    toast.success(dialog.item ? "已保存" : `已添加到 ${target}`);
+    toast.success(
+      dialog.item ? "已保存" : `已添加到 ${target}`,
+      // Saved from 发现: the list it went into is one tap away.
+      section === "discover"
+        ? {
+            action: { label: "查看", onClick: () => setSection("library") },
+          }
+        : undefined,
+    );
   }
 
   function remove() {
@@ -346,6 +367,24 @@ export function MediaLog({ syncEnabled }: { syncEnabled: boolean }) {
     setDialogOpen(true);
   };
   const openNew = () => openEditor({ region, item: null });
+  /** From 发现: open the work's library entry, or a new one filled in from it. */
+  const pickWork: PickWork = (work, owned) =>
+    openEditor(
+      owned
+        ? { region: owned.region, item: owned.item }
+        : {
+            region: work.region,
+            item: null,
+            prefill: {
+              name: work.title,
+              category: work.category,
+              status: toStatus(work.phase),
+              // Found, not started yet.
+              watch: "未看",
+              url: work.url,
+            },
+          },
+    );
 
   /* ------------------------------------------------------------- render */
 
@@ -418,10 +457,20 @@ export function MediaLog({ syncEnabled }: { syncEnabled: boolean }) {
 
   const chrome = {
     library,
+    section,
     region,
+    feed,
     storage,
     sync,
-    onRegion: setRegion,
+    onSection: setSection,
+    onRegion: (r: Region) => {
+      setSection("library");
+      setRegion(r);
+    },
+    onFeed: (f: FeedId) => {
+      setSection("discover");
+      setFeed(f);
+    },
     onImport: pickFiles,
     onExport: exportSnapshot,
     install,
@@ -436,39 +485,50 @@ export function MediaLog({ syncEnabled }: { syncEnabled: boolean }) {
           <div className="flex min-w-0 flex-1 flex-col">
             <MobileBar {...chrome} />
             <main className="mx-auto w-full max-w-5xl px-8 pt-8 pb-16 max-md:px-4 max-md:pt-5 max-md:pb-28">
-              <LibraryHeader
-                searchRef={searchRef}
-                region={region}
-                total={all.length}
-                shown={visible.length}
-                watchCounts={watchCounts}
-                query={query}
-                filters={filters}
-                sortKey={sortKey}
-                sortDir={sortDir}
-                onQuery={setQuery}
-                onFilter={setFilterValues}
-                onWatch={(w) =>
-                  setFilters((prev) => ({
-                    ...prev,
-                    watch: new Set(w ? [w] : []),
-                  }))
-                }
-                onSort={sortBy}
-                onSortDir={() =>
-                  setSortDir((d) => (d === "asc" ? "desc" : "asc"))
-                }
-                onClear={clearFilters}
-                onNew={openNew}
-                ready={library !== null}
-                showFilters={all.length > 0}
-              />
-              <div className="mt-3">{body}</div>
+              {section === "discover" ? (
+                <Discover
+                  feed={feed}
+                  library={library}
+                  moviesEnabled={moviesEnabled}
+                  onPick={pickWork}
+                />
+              ) : (
+                <>
+                  <LibraryHeader
+                    searchRef={searchRef}
+                    region={region}
+                    total={all.length}
+                    shown={visible.length}
+                    watchCounts={watchCounts}
+                    query={query}
+                    filters={filters}
+                    sortKey={sortKey}
+                    sortDir={sortDir}
+                    onQuery={setQuery}
+                    onFilter={setFilterValues}
+                    onWatch={(w) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        watch: new Set(w ? [w] : []),
+                      }))
+                    }
+                    onSort={sortBy}
+                    onSortDir={() =>
+                      setSortDir((d) => (d === "asc" ? "desc" : "asc"))
+                    }
+                    onClear={clearFilters}
+                    onNew={openNew}
+                    ready={library !== null}
+                    showFilters={all.length > 0}
+                  />
+                  <div className="mt-3">{body}</div>
+                </>
+              )}
             </main>
           </div>
 
           {/* Phone: the add button sits where the thumb is. */}
-          {library !== null && (
+          {library !== null && section === "library" && (
             <motion.button
               type="button"
               onClick={openNew}

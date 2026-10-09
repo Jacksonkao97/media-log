@@ -15,7 +15,7 @@ UI text and the README are Simplified Chinese; code comments are English.
 1. Port the v1 UI to Next.js, storing data in the browser (done).
 2. Google sign-in plus automatic Drive sync: the four region files, plus a daily dated snapshot, because Drive only keeps old versions for about 30 days (done).
 3. Make it an installable PWA so it works on phones, including offline (done).
-4. "Latest anime/movies" using AniList (anime/manga, including airing schedules) and TMDB (movies).
+4. "Latest anime/movies" using AniList (anime/manga, including airing schedules) and TMDB (movies) (done).
 5. Episode/site trackers with notifications, which need a server-side scheduled job. Vercel's free plan only runs cron once a day.
 6. Go public, keeping each user's data in their own Google Drive.
 
@@ -29,7 +29,7 @@ npm run lint           # ESLint (next lint no longer exists in Next 16)
 npm run format         # Prettier; data/ is excluded via .prettierignore
 npx tsc --noEmit       # typecheck; needs a build or `next dev` first for the generated types
 npx tsc --noEmit -p src/sw   # typecheck the service worker (its own tsconfig, webworker lib)
-npm test               # Vitest: src/**/*.test.ts (sync merge and engine, launch params)
+npm test               # Vitest: src/**/*.test.ts (sync merge and engine, launch params, discover feeds)
 npx vitest run src/lib/sync/merge.test.ts -t "newer edit"   # one file / one test
 node scripts/generate-icons.mjs   # regenerate every app icon (sharp); edit this, not the PNGs
 ```
@@ -42,18 +42,23 @@ Vitest covers pure logic only. To check UI behaviour, drive the running app in a
 - To test sync without real Google, build and start with placeholder env (`AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, plus `AUTH_TRUST_HOST=true` for `next start`). Then use `context.route` to answer `/api/auth/session` (a session with `accessToken`), `/api/auth/csrf` and `/api/auth/signout`, and serve `https://www.googleapis.com/**` from an in-memory Drive. Use one route handler per browser context, sharing one fake Drive to simulate several devices.
 - A production build runs the service worker, and Drive calls then go through it. Playwright only routes, and applies `setOffline` to, service-worker requests when run with `PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1`. Without it the fake Drive is bypassed.
 - To check installability, call CDP `Page.getInstallabilityErrors` through `context.newCDPSession(page)`. To test the install button, dispatch a synthetic `beforeinstallprompt` `Event` with `prompt` and `userChoice` attached. iOS needs an iPhone user agent; fake standalone mode by defining `Navigator.prototype.standalone` in an init script.
+- To simulate offline for the service worker, stop the server rather than calling `setOffline`, which did not stop the worker's own requests even with the flag above.
+- To test 发现 without AniList/TMDB (or without network to them), start the server with `NODE_OPTIONS="--import ./fake-upstream.mjs"`: a module that replaces `globalThis.fetch` and answers `https://graphql.anilist.co` and `https://api.themoviedb.org/` from fixtures. Next wraps whatever `fetch` it finds, so its fetch cache still runs and the whole route is exercised. Serve posters with `context.route` on `s4.anilist.co` and `image.tmdb.org`. Set any `TMDB_API_KEY` at build time, or the 电影 feed shows its setup notice.
 
 **Installing packages.** npm 10's resolver can crash with `Cannot read properties of null (reading 'edgesOut')` while resolving optional peer loops, as Vitest's do. If `npm install <pkg>` hits that, retry with `--legacy-peer-deps`. A plain `npm install`/`npm ci` from the lockfile works.
 
 ## Architecture
 
-The app is a single client-side page: `src/app/page.tsx` renders `src/components/MediaLog.tsx` (`"use client"`), which holds all state. The only server code is Google sign-in (`src/auth.ts` and `src/app/api/auth/[...nextauth]/route.ts`).
+The app is a single client-side page: `src/app/page.tsx` renders `src/components/MediaLog.tsx` (`"use client"`), which holds all state. The only server code is Google sign-in (`src/auth.ts` and `src/app/api/auth/[...nextauth]/route.ts`) and the 发现 feeds (`src/app/api/discover/[feed]/route.ts`).
 
-`page.tsx` passes `syncEnabled` (all three auth env vars set). The page is statically prerendered, so `next build` captures it; after changing the env, rebuild. `next dev` re-reads it.
+`page.tsx` passes `syncEnabled` (all three auth env vars set) and `moviesEnabled` (`TMDB_API_KEY` set). The page is statically prerendered, so `next build` captures them; after changing the env, rebuild. `next dev` re-reads it.
+
+`MediaLog` has two sections, `library` (the regions) and `discover` (发现); `section`, `region` and `feed` are its state. The desktop sidebar lists both; on phones a 片单 / 发现 switch in the top bar picks the section, and the second row shows its regions or feeds.
 
 The components under `src/components/`:
 
-- `Chrome.tsx` holds the desktop `Sidebar` and the phone `MobileBar`. Both show the region nav, the save/sync status, the account (from `Account.tsx`), import/export, and the install entry (from `Pwa.tsx`).
+- `Chrome.tsx` holds the desktop `Sidebar` and the phone `MobileBar`. Both show the region and 发现 nav, the save/sync status, the account (from `Account.tsx`), import/export, and the install entry (from `Pwa.tsx`).
+- `Discover.tsx` is the 发现 section: the timetable and the work grids. `useFeed.ts` loads a feed.
 - `LibraryHeader.tsx` has the title, the watch-state tabs, and the search, filter and sort row.
 - `ItemList.tsx` has the rows, the loading skeleton and the empty states.
 - `ItemDialog.tsx` is the add/edit form. It is a shadcn `Dialog` on desktop and a vaul `Drawer` (swipe-to-dismiss bottom sheet) on phones. `MediaLog` keeps the edit target separate from the open flag, so the closing animation still has content to show.
@@ -136,6 +141,19 @@ The components under `src/components/`:
   - The last signed-in account is kept in `localStorage` (`medialog:account`): name, email and image, never tokens. When the session can't be fetched, the app shows that account as offline rather than signed out. It reconnects on `online`, on the poll, or on 立即同步.
   - Sign-out clears the cached account.
   - Session lookups use `fetchSession()` from `lib/sync/client.ts`, not next-auth's `getSession()`. `getSession()` returns `null` for a failed request too, so a network blip would look like a sign-out, or would make `getAccessToken` ask for re-login. `fetchSession()` instead throws a `TypeError` when offline and an `Error` when the server fails.
+
+**发现 feeds** (`src/lib/discover/`, `src/app/api/discover/[feed]/route.ts`, `src/components/Discover.tsx`, `useFeed.ts`).
+
+- **Feeds.** `airing` (AniList airing schedules, two days back to a week ahead), `season` (a season's anime by popularity), `manga` (trending, by country JP/CN/KR) and `movies` (TMDB now playing / upcoming / trending). `feeds.ts` defines them: the UI builds URLs with `feedUrl()`, and the route accepts only what `parseFeed()` reads back (a season within a year of now, the three countries, the three lists); anything else is 404. That keeps the set of upstream requests, and so the caches, small and fixed. Add an option in both places.
+- **Server only.** The browser never calls AniList or TMDB, only `/api/discover/*`. `TMDB_API_KEY` stays on the server; it may be the v4 read access token (a JWT, sent as `Bearer`) or the v3 key (sent as `api_key`). `TMDB_REGION` optionally sets whose cinema dates count. Without a key the 电影 feed shows a setup notice and the route answers 503.
+- **Caching.** Every upstream call passes `next: { revalidate }`: 30 min for airing, 1 h for season and manga, 6 h for movies. Next's fetch cache matches on URL, method, headers and body, POSTs included, and stores only 200s, so failures are retried. That is why the airing window moves a whole UTC day at a time (`airingWindow`): a body that changed every request would never hit. Responses also carry `s-maxage` for a CDN. AniList allows 90 requests a minute, currently 30; a cold cache costs at most about 20.
+- **Normalising.** `anilist.ts` and `tmdb.ts` turn results into `Work` (`types.ts`): title, link, cover, and the library fields the editor prefills (category, region, status). AniList has no Chinese titles, so `titlesOf` prefers a Chinese-looking synonym, then the native title for Chinese and Japanese works, then English. AniList `MOVIE` becomes 电影, like the migration did with 剧场版. Regions come from AniList's `countryOfOrigin` and TMDB's `original_language`. Adult titles are dropped. Upstream errors become `UpstreamError`, and the route answers 502 with the Chinese message.
+- **Matching** (`match.ts`). A work is "in the library" when an item's `url` is that work's AniList/TMDB page (`workKey`), or when an item of the same category has exactly one of its titles (`normTitle` ignores case, width, spaces and punctuation). Adding from 发现 saves the link, so those always match; older items rarely do, because their names are Chinese. Tapping a matched work opens its entry instead of adding.
+- **Adding.** `MediaLog.pickWork` opens the editor with `DialogTarget.prefill` (name, category, status, `watch: "未看"`, url) in the work's region. After saving from 发现, the toast offers 查看, which switches to the library.
+- **Timetable days** (`schedule.ts`) are local: yesterday through six days ahead, so each weekly show appears once. The view fixes `now` when it opens.
+- **Client.** `useFeed` keeps results in memory for the session (fresh for 10 min; older copies show while reloading, and stay if the reload fails). Offline, Serwist's default `/api/` rule (network-first, cache `apis`) serves the last copy. Posters come straight from the CDNs as plain `<img>`, not `next/image`. The service worker leaves them alone (`NetworkOnly`), because opaque responses count about 7 MB each against storage quota. Covers fall back to the AniList average colour, then the category icon. Only `https` links and posters are used.
+- **Credit.** TMDB's terms require the notice in `Credit` ("This product uses the TMDB API but is not endorsed or certified by TMDB.") and, for a public site, their logo in an about/credits page, which is still to do (step 6).
+- **Testing.** Normalisers, paging and errors are tested against a stubbed `fetch` with fixtures shaped like the documented schemas. They were written without access to the live APIs, so check against the real ones when you can.
 
 **Sorting quirks are intentional** and match v1:
 

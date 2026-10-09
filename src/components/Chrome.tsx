@@ -1,7 +1,9 @@
 /* App chrome: the desktop sidebar and the phone top bar. Both show the same
- * things — regions, where data lives (browser / Google Drive), the account,
- * import/export, installing the app — laid out for their screen. */
+ * things — regions and the 发现 feeds, where data lives (browser / Google
+ * Drive), the account, import/export, installing the app — laid out for
+ * their screen. */
 
+import type { ReactNode } from "react";
 import {
   Download,
   Ellipsis,
@@ -18,34 +20,107 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { FEED_IDS, type FeedId } from "@/lib/discover/feeds";
 import { REGIONS, type Library as Lib, type Region } from "@/lib/schema";
 import { cn } from "@/lib/utils";
 import { AccountCard, StatusDot, SyncMenuItems } from "./Account";
+import { FEEDS } from "./Discover";
+import { Segmented } from "./Segmented";
 import type { Install } from "./Pwa";
 import type { DriveSync } from "./useDriveSync";
 
 export type StorageState =
   "loading" | "saving" | "saved" | "error" | "unavailable";
 
+/** The two halves of the app: your own list, and what's new out there. */
+export type Section = "library" | "discover";
+const SECTIONS: readonly Section[] = ["library", "discover"];
+const SECTION_LABEL: Record<Section, string> = {
+  library: "片单",
+  discover: "发现",
+};
+
 interface Props {
   library: Lib | null;
+  section: Section;
   region: Region;
+  feed: FeedId;
   storage: StorageState;
   sync: DriveSync;
   install: Install;
+  onSection: (s: Section) => void;
   onRegion: (r: Region) => void;
+  onFeed: (f: FeedId) => void;
   onImport: () => void;
   onExport: () => void;
+}
+
+function Logo() {
+  return (
+    <span className="bg-primary text-primary-foreground inline-flex size-8 shrink-0 items-center justify-center rounded-lg">
+      <Library aria-hidden className="size-[18px]" />
+    </span>
+  );
 }
 
 function Brand() {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="bg-primary text-primary-foreground inline-flex size-8 items-center justify-center rounded-lg">
-        <Library aria-hidden className="size-[18px]" />
-      </span>
+      <Logo />
       <span className="text-[15px] font-semibold tracking-tight">MediaLog</span>
     </div>
+  );
+}
+
+/** A sidebar nav entry. */
+function NavButton({
+  on,
+  onClick,
+  children,
+}: {
+  on: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Button
+      variant="ghost"
+      aria-current={on ? "page" : undefined}
+      onClick={onClick}
+      className={cn(
+        "w-full justify-between px-3 font-normal",
+        on ? "bg-accent text-foreground font-medium" : "text-muted-foreground",
+      )}
+    >
+      {children}
+    </Button>
+  );
+}
+
+/** A tab in the phone's second row (regions or feeds). */
+function TabButton({
+  on,
+  onClick,
+  children,
+}: {
+  on: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-current={on ? "page" : undefined}
+      onClick={onClick}
+      className={cn(
+        "flex h-11 shrink-0 cursor-pointer items-center gap-1.5 border-b-2 px-3 text-[15px] whitespace-nowrap",
+        on
+          ? "border-primary text-foreground font-medium"
+          : "text-muted-foreground border-transparent",
+      )}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -54,11 +129,14 @@ const count = (library: Lib | null, r: Region) =>
 
 export function Sidebar({
   library,
+  section,
   region,
+  feed,
   storage,
   sync,
   install,
   onRegion,
+  onFeed,
   onImport,
   onExport,
 }: Props) {
@@ -72,20 +150,10 @@ export function Sidebar({
         <p className="text-faint mb-1.5 px-3 text-xs font-medium">区域</p>
         <ul className="flex flex-col gap-0.5">
           {REGIONS.map((r) => {
-            const on = r === region;
+            const on = section === "library" && r === region;
             return (
               <li key={r}>
-                <Button
-                  variant="ghost"
-                  aria-current={on ? "page" : undefined}
-                  onClick={() => onRegion(r)}
-                  className={cn(
-                    "w-full justify-between px-3 font-normal",
-                    on
-                      ? "bg-accent text-foreground font-medium"
-                      : "text-muted-foreground",
-                  )}
-                >
+                <NavButton on={on} onClick={() => onRegion(r)}>
                   {r}
                   <span
                     className={cn(
@@ -95,7 +163,29 @@ export function Sidebar({
                   >
                     {count(library, r)}
                   </span>
-                </Button>
+                </NavButton>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      <nav aria-label="发现" className="mt-6">
+        <p className="text-faint mb-1.5 px-3 text-xs font-medium">发现</p>
+        <ul className="flex flex-col gap-0.5">
+          {FEED_IDS.map((f) => {
+            const { label, icon: Icon } = FEEDS[f];
+            return (
+              <li key={f}>
+                <NavButton
+                  on={section === "discover" && f === feed}
+                  onClick={() => onFeed(f)}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <Icon aria-hidden className="text-faint" />
+                    {label}
+                  </span>
+                </NavButton>
               </li>
             );
           })}
@@ -143,18 +233,30 @@ export function Sidebar({
 
 export function MobileBar({
   library,
+  section,
   region,
+  feed,
   storage,
   sync,
   install,
+  onSection,
   onRegion,
+  onFeed,
   onImport,
   onExport,
 }: Props) {
   return (
     <header className="bg-background/90 sticky top-0 z-30 border-b pt-[env(safe-area-inset-top)] backdrop-blur-md md:hidden">
-      <div className="flex h-14 items-center gap-2 pr-1 pl-4">
-        <Brand />
+      <div className="flex h-14 items-center gap-2.5 pr-1 pl-4">
+        <Logo />
+        <Segmented
+          label="版块"
+          value={section}
+          options={SECTIONS}
+          onChange={onSection}
+          render={(s) => SECTION_LABEL[s]}
+          className="w-36"
+        />
         <div className="flex-1" />
         <StatusDot storage={storage} sync={sync} />
         <DropdownMenu>
@@ -201,30 +303,26 @@ export function MobileBar({
         </DropdownMenu>
       </div>
 
-      <nav aria-label="区域" className="flex gap-1 overflow-x-auto px-2">
-        {REGIONS.map((r) => {
-          const on = r === region;
-          return (
-            <button
-              key={r}
-              type="button"
-              aria-current={on ? "page" : undefined}
-              onClick={() => onRegion(r)}
-              className={cn(
-                "flex h-11 shrink-0 cursor-pointer items-center gap-1.5 border-b-2 px-3 text-[15px] whitespace-nowrap",
-                on
-                  ? "border-primary text-foreground font-medium"
-                  : "text-muted-foreground border-transparent",
-              )}
-            >
+      {section === "library" ? (
+        <nav aria-label="区域" className="flex gap-1 overflow-x-auto px-2">
+          {REGIONS.map((r) => (
+            <TabButton key={r} on={r === region} onClick={() => onRegion(r)}>
               {r}
               <span className="text-faint text-xs tabular-nums">
                 {count(library, r)}
               </span>
-            </button>
-          );
-        })}
-      </nav>
+            </TabButton>
+          ))}
+        </nav>
+      ) : (
+        <nav aria-label="发现" className="flex gap-1 overflow-x-auto px-2">
+          {FEED_IDS.map((f) => (
+            <TabButton key={f} on={f === feed} onClick={() => onFeed(f)}>
+              {FEEDS[f].short}
+            </TabButton>
+          ))}
+        </nav>
+      )}
     </header>
   );
 }

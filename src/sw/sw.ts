@@ -11,7 +11,12 @@
  *   - never cached: Google (sign-in, Drive API, avatars). Drive replies hold
  *     the user's data, and a stale one would mislead sync; when offline those
  *     requests should simply fail, which sync already handles.
- *   - everything else: Serwist's defaults for Next.js (/api/auth is network-only). */
+ *   - not cached here either: AniList / TMDB posters (发现). They are opaque
+ *     cross-origin responses, which Chrome counts as ~7 MB of quota each; the
+ *     browser's own HTTP cache keeps them instead.
+ *   - everything else: Serwist's defaults for Next.js. /api/auth is
+ *     network-only; other /api/ GETs, such as the 发现 feeds, are network-first,
+ *     so the last copy still shows offline. */
 
 import { defaultCache } from "@serwist/turbopack/worker";
 import {
@@ -29,6 +34,7 @@ declare global {
 declare const self: ServiceWorkerGlobalScope;
 
 const GOOGLE = /(^|\.)(google\.com|googleapis\.com|googleusercontent\.com)$/;
+const POSTERS = /(^|\.)(anilist\.co|tmdb\.org)$/;
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
@@ -43,7 +49,8 @@ const serwist = new Serwist({
   navigationPreload: false,
   runtimeCaching: [
     {
-      matcher: ({ url }) => GOOGLE.test(url.hostname),
+      matcher: ({ url }) =>
+        GOOGLE.test(url.hostname) || POSTERS.test(url.hostname),
       handler: new NetworkOnly(),
     },
     ...defaultCache,
