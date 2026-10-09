@@ -5,6 +5,8 @@
 
 import type { ReactNode } from "react";
 import {
+  Bell,
+  BellRing,
   Download,
   Ellipsis,
   Library,
@@ -28,6 +30,7 @@ import { FEEDS } from "./Discover";
 import { Segmented } from "./Segmented";
 import type { Install } from "./Pwa";
 import type { DriveSync } from "./useDriveSync";
+import type { Reminders } from "./useReminders";
 
 export type StorageState =
   "loading" | "saving" | "saved" | "error" | "unavailable";
@@ -48,6 +51,7 @@ interface Props {
   storage: StorageState;
   sync: DriveSync;
   install: Install;
+  reminders: Reminders;
   onSection: (s: Section) => void;
   onRegion: (r: Region) => void;
   onFeed: (f: FeedId) => void;
@@ -135,11 +139,13 @@ export function Sidebar({
   storage,
   sync,
   install,
+  reminders,
   onRegion,
   onFeed,
   onImport,
   onExport,
 }: Props) {
+  const remindersOn = reminders.state === "on";
   return (
     <aside className="bg-card sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r px-3 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))] md:flex">
       <div className="px-2">
@@ -216,16 +222,29 @@ export function Sidebar({
             导出
           </Button>
         </div>
-        {install.mode && (
+        <div className="flex flex-col">
           <Button
             variant="ghost"
-            onClick={install.install}
+            onClick={() => reminders.setOpen(true)}
             className="text-muted-foreground w-full justify-start"
           >
-            <MonitorDown aria-hidden />
-            安装应用
+            {remindersOn ? <BellRing aria-hidden /> : <Bell aria-hidden />}
+            更新提醒
+            {remindersOn && (
+              <span className="text-faint ml-auto text-xs">已开启</span>
+            )}
           </Button>
-        )}
+          {install.mode && (
+            <Button
+              variant="ghost"
+              onClick={install.install}
+              className="text-muted-foreground w-full justify-start"
+            >
+              <MonitorDown aria-hidden />
+              安装应用
+            </Button>
+          )}
+        </div>
       </div>
     </aside>
   );
@@ -239,6 +258,7 @@ export function MobileBar({
   storage,
   sync,
   install,
+  reminders,
   onSection,
   onRegion,
   onFeed,
@@ -289,6 +309,20 @@ export function MobileBar({
             >
               <Download aria-hidden className="size-[18px]" />
               导出备份
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => reminders.setOpen(true)}
+              className="h-11 gap-3 text-[15px]"
+            >
+              {reminders.state === "on" ? (
+                <BellRing aria-hidden className="size-[18px]" />
+              ) : (
+                <Bell aria-hidden className="size-[18px]" />
+              )}
+              更新提醒
+              {reminders.state === "on" && (
+                <span className="text-faint ml-auto text-xs">已开启</span>
+              )}
             </DropdownMenuItem>
             {install.mode && (
               <DropdownMenuItem

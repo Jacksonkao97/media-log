@@ -2,7 +2,7 @@
 
 个人向的动画 / 漫画 / 电影追踪表。
 
-> **这是 v2 分支**：用 Next.js 重写，目标是做成网站（手机也能用）、自动同步到 Google Drive、看新番资讯，以后再加更新提醒。
+> **这是 v2 分支**：用 Next.js 重写，目标是做成网站（手机也能用）、自动同步到 Google Drive、看新番资讯、有更新时推送提醒。
 > 旧版（纯 HTML，直接改 `data/` 里的 JSON）还在 `main` 分支上，v2 完成后再合并过去。
 
 ## 本地运行
@@ -24,6 +24,8 @@ npm run dev
 
 想装到手机主屏幕上？见下面「安装到手机 / 电脑」。
 
+在追的番出了新一集、在看的漫画出了新一话，想收到通知？见下面「更新提醒」。
+
 想看本季新番、每天的更新时间表、热门漫画和院线电影？点左侧栏的 **发现**（手机上是顶部的 **发现**），见下面「新番 / 电影资讯」。动画和漫画不用任何设置；电影需要一个免费的 TMDB key。
 
 ## 功能
@@ -39,6 +41,7 @@ npm run dev
 - **Google Drive 同步** —— 多台设备自动同步，每天一份快照（见下文）
 - **可以安装** —— 装到手机主屏幕或电脑上，像 App 一样全屏打开；没网也能看、能改，联网后自动同步
 - **发现** —— 新番时间表、季度新番、热门漫画、院线电影；点一下就能加入片单（见下文）
+- **更新提醒** —— 「看着」的动画出新一集、漫画柜上的漫画出新一话时，推送通知到手机 / 电脑（见下文）
 - 跟随系统深色 / 浅色
 
 ## 开发
@@ -46,7 +49,7 @@ npm run dev
 界面用 [shadcn/ui](https://ui.shadcn.com)（组件源码在 `src/components/ui/`）和 [Motion](https://motion.dev) 做动画。
 
 ```bash
-npm test               # 单元测试（同步合并逻辑、启动参数、资讯解析）
+npm test               # 单元测试（同步合并逻辑、启动参数、资讯解析、更新提醒）
 npm run build          # 生产构建
 npm run lint           # ESLint
 npm run format         # Prettier（不会动 data/）
@@ -59,7 +62,7 @@ node scripts/generate-icons.mjs   # 重新生成应用图标
 2. ~~Google 登录 + 自动同步到 Drive（四个区域文件 + 每天一份带日期的快照）~~ ✅
 3. ~~做成可安装的 PWA，手机上像 App 一样用，离线也能打开~~ ✅
 4. ~~新番 / 新电影资讯（AniList、TMDB）~~ ✅
-5. 追更提醒（新一集 / 网站更新时通知）
+5. ~~追更提醒（新一集 / 网站更新时通知）~~ ✅
 6. 公开上线
 
 > ⚠️ `data/` 里是真实的个人数据。公开部署之前要把它移出仓库。
@@ -181,6 +184,80 @@ node scripts/generate-icons.mjs   # 重新生成应用图标
 没配置时「电影」页会显示怎么配置，其他页面不受影响。这个 key 只在服务器上用，不会发到浏览器。
 
 TMDB 的使用条款要求注明来源，电影页底部已经写了；**公开上线前**还要在「关于」之类的地方放上 TMDB 的 logo（见 [TMDB 的说明](https://www.themoviedb.org/about/logos-attribution)）。
+
+## 更新提醒
+
+「看着」的作品有更新时，推送通知到开启了提醒的设备：
+
+- **动画**：链接是 AniList 的（从「发现」加入的都是），新一集播出后提醒
+- **漫画**：链接是漫画柜（manhuagui.com）的，出了新章节后提醒
+
+在应用里点左侧栏的 **更新提醒**（手机上在右上角 ⋯ 菜单里），点 **开启提醒**，允许通知，再点 **发送测试通知** 确认能收到。每台设备（手机、电脑）要各自开启一次。
+
+- **开启的那一刻不会提醒**：第一次检查只记下每部漫画现在的最新一话，之后有新的才通知，所以不会一下子收到一百多条。
+- **一次更新超过 3 部**，合成一条「N 部作品有更新」。
+- **点通知**：漫画打开漫画柜的那一页，动画打开 MediaLog。
+- **改了片单**（加了作品、改了观看状态、改了链接），几秒后会自动告诉服务器，不用重新开启。
+- **iPhone / iPad**：要先把 MediaLog 添加到主屏幕（iOS 16.4 以上），从主屏幕打开后才能开启。
+- 对话框里会显示服务器**上次检查**的时间，以及读取失败的漫画（比如漫画柜挡住了服务器）。
+
+**服务器上保存了什么**：开启提醒的设备的推送地址，以及它们「看着」的作品的名称、进度和 AniList / 漫画柜编号（用来写通知）。片单的其他内容不会上传。
+
+### 设置（一次性）
+
+更新提醒需要服务器做三件事：发推送（VAPID 密钥）、记住谁在追什么（存储）、定时检查（定时任务）。
+
+**1. 生成推送密钥**，在项目目录运行：
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+把输出的两行和你的邮箱填进 `.env.local`（或部署平台的环境变量）：
+
+```bash
+VAPID_PUBLIC_KEY=   # Public Key
+VAPID_PRIVATE_KEY=  # Private Key
+VAPID_SUBJECT=mailto:你的邮箱   # 推送服务有问题时联系你用
+CRON_SECRET=        # 随便一串长随机字符，比如 openssl rand -base64 32 的输出
+```
+
+密钥生成一次就别再换：换了以后，所有设备都要重新开启提醒。
+
+**2. 存储**
+
+- **自己的服务器 / 电脑**（有硬盘的）：不用设置，存在项目目录的 `.data/track.json` 里（可以用 `TRACK_FILE` 换位置）。
+- **Vercel 这类 serverless 平台**：没有能长期保存文件的硬盘，要用 [Upstash Redis](https://upstash.com)（免费额度足够）。在 Upstash 控制台建一个 Redis 数据库，把 **REST URL** 和 **REST Token** 填进 `UPSTASH_REDIS_REST_URL`、`UPSTASH_REDIS_REST_TOKEN`。在 Vercel 上也可以从 **Storage → Marketplace → Upstash** 一键创建，环境变量会自动填好。
+
+**3. 定时检查**：让一个定时任务每隔一段时间访问一次：
+
+```
+https://你的域名/api/track/check
+请求头：Authorization: Bearer <CRON_SECRET>
+```
+
+任选一种：
+
+- **Upstash QStash（推荐，每 30 分钟）**：免费额度每天 1000 次，每 30 分钟一次只用 48 次。在 Upstash 控制台的 **QStash → Schedules** 新建：URL 填上面的地址，Cron 填 `*/30 * * * *`，Headers 加 `Authorization: Bearer <CRON_SECRET>`。
+- **Vercel Cron**：项目根目录加一个 `vercel.json`：
+  ```json
+  { "crons": [{ "path": "/api/track/check", "schedule": "0 1 * * *" }] }
+  ```
+  Vercel 会自动带上 `CRON_SECRET`。但免费版**每天只能跑一次**（时间还会浮动一小时），所以只适合每天一次的汇总提醒。
+- **自己的服务器**：crontab 里加一行，比如每 30 分钟：
+  ```bash
+  */30 * * * * curl -fsS -H "Authorization: Bearer 你的CRON_SECRET" https://你的域名/api/track/check
+  ```
+
+每次检查：动画查一次 AniList（问的是上次检查以后播出的集数）；漫画每部**每 6 小时**最多查一次（`TRACK_MANGA_HOURS` 可以改），每次最多查 40 秒，没查完的下次接着查。返回的 JSON 里有这次查了多少、发了几条通知。
+
+**本地试**：推送需要 service worker，`npm run dev` 不行，要 `npm run build && npm start`（`localhost` 可以，局域网的 `http://` 地址不行）。开启提醒后，手动访问一次检查地址：
+
+```bash
+curl -H "Authorization: Bearer 你的CRON_SECRET" http://localhost:3000/api/track/check
+```
+
+**如果漫画一直「读取失败」**：可能是漫画柜挡住了服务器所在地区的访问。可以试试把 `MANHUAGUI_ORIGIN` 设成 `https://tw.manhuagui.com`。
 
 ## Google Drive 同步设置
 

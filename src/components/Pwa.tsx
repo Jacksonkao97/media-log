@@ -96,12 +96,12 @@ const subscribe = (l: () => void) => {
   };
 };
 
-const isStandalone = () =>
+export const isStandalone = () =>
   window.matchMedia("(display-mode: standalone)").matches ||
   (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
 // iPadOS reports itself as a Mac, but with a touch screen.
-const isIos = () =>
+export const isIos = () =>
   /iphone|ipad|ipod/i.test(navigator.userAgent) ||
   (navigator.userAgent.includes("Macintosh") && navigator.maxTouchPoints > 1);
 

@@ -16,7 +16,10 @@
  *     browser's own HTTP cache keeps them instead.
  *   - everything else: Serwist's defaults for Next.js. /api/auth is
  *     network-only; other /api/ GETs, such as the 发现 feeds, are network-first,
- *     so the last copy still shows offline. */
+ *     so the last copy still shows offline.
+ *
+ * It also shows 更新提醒 notifications pushed by the server
+ * (lib/track/push.ts), and opens the right page when one is tapped. */
 
 import { defaultCache } from "@serwist/turbopack/worker";
 import {
@@ -58,3 +61,60 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+/* ------------------------------------------------------------ 更新提醒 */
+
+/** lib/track/push.ts PushMessage. */
+interface PushMessage {
+  title: string;
+  body: string;
+  url: string;
+  tag: string;
+}
+
+self.addEventListener("push", (event) => {
+  let msg: PushMessage;
+  try {
+    msg = event.data?.json() as PushMessage;
+  } catch {
+    msg = {
+      title: "MediaLog",
+      body: event.data?.text() ?? "",
+      url: "/",
+      tag: "",
+    };
+  }
+  event.waitUntil(
+    self.registration.showNotification(msg.title || "MediaLog", {
+      body: msg.body,
+      tag: msg.tag || undefined,
+      // An update replacing an older one for the same work should still alert.
+      renotify: Boolean(msg.tag),
+      icon: "/icons/icon-192.png",
+      badge: "/icons/badge-96.png",
+      data: { url: msg.url || "/" },
+      lang: "zh-Hans",
+    } as NotificationOptions),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = new URL(
+    (event.notification.data as { url?: string } | null)?.url ?? "/",
+    self.location.origin,
+  );
+  event.waitUntil(
+    (async () => {
+      // The app: bring an open window forward rather than opening another.
+      if (url.origin === self.location.origin) {
+        const open = await self.clients.matchAll({
+          type: "window",
+          includeUncontrolled: true,
+        });
+        if (open[0]) return void (await open[0].focus());
+      }
+      await self.clients.openWindow(url.href);
+    })(),
+  );
+});

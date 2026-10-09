@@ -162,7 +162,10 @@ interface PageOf<K extends string, T> {
   >;
 }
 
-async function query<T>(
+/** One GraphQL request. Queries that spread `...work` get the fragment
+ *  appended. `revalidate` is seconds in Next's fetch cache; 0 never caches
+ *  (the update tracker needs fresh answers). */
+export async function query<T>(
   text: string,
   variables: Record<string, unknown>,
   revalidate: number,
@@ -175,7 +178,10 @@ async function query<T>(
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: JSON.stringify({ query: text + WORK, variables }),
+      body: JSON.stringify({
+        query: text.includes("...work") ? text + WORK : text,
+        variables,
+      }),
       // Only 200 responses are stored, so a failure is retried next time.
       next: { revalidate },
     });

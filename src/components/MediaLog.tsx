@@ -57,6 +57,8 @@ import {
 import { MobileBar, Sidebar, type Section, type StorageState } from "./Chrome";
 import { Discover, type PickWork } from "./Discover";
 import { IosInstallDialog, useInstall } from "./Pwa";
+import { RemindersDialog } from "./Reminders";
+import { useReminders } from "./useReminders";
 import { useDriveSync } from "./useDriveSync";
 import { ItemDialog, type DialogTarget } from "./ItemDialog";
 import { EmptyState, ItemList, ListSkeleton, type Flash } from "./ItemList";
@@ -69,13 +71,16 @@ const noFilters = (): Filters => ({
 });
 
 /** `syncEnabled`: Google sign-in is configured on this server (see src/auth.ts).
- *  `moviesEnabled`: so is TMDB, for the 电影 feed (TMDB_API_KEY). */
+ *  `moviesEnabled`: so is TMDB, for the 电影 feed (TMDB_API_KEY).
+ *  `pushKey`: the VAPID public key when 更新提醒 is set up (lib/track/config.ts). */
 export function MediaLog({
   syncEnabled,
   moviesEnabled,
+  pushKey,
 }: {
   syncEnabled: boolean;
   moviesEnabled: boolean;
+  pushKey: string | null;
 }) {
   const [library, setLibrary] = useState<Library | null>(null);
   const [storage, setStorage] = useState<StorageState>("loading");
@@ -124,6 +129,7 @@ export function MediaLog({
     return () => tabs.current?.close();
   }, []);
   const install = useInstall();
+  const reminders = useReminders(pushKey, library);
   const sync = useDriveSync({
     enabled: syncEnabled,
     ready: library !== null,
@@ -474,6 +480,7 @@ export function MediaLog({
     onImport: pickFiles,
     onExport: exportSnapshot,
     install,
+    reminders,
   };
 
   return (
@@ -556,6 +563,7 @@ export function MediaLog({
             }}
           />
           <IosInstallDialog install={install} />
+          <RemindersDialog reminders={reminders} install={install} />
           <ItemDialog
             target={dialog}
             open={dialogOpen}

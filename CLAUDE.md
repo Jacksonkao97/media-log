@@ -16,7 +16,7 @@ UI text and the README are Simplified Chinese; code comments are English.
 2. Google sign-in plus automatic Drive sync: the four region files, plus a daily dated snapshot, because Drive only keeps old versions for about 30 days (done).
 3. Make it an installable PWA so it works on phones, including offline (done).
 4. "Latest anime/movies" using AniList (anime/manga, including airing schedules) and TMDB (movies) (done).
-5. Episode/site trackers with notifications, which need a server-side scheduled job. Vercel's free plan only runs cron once a day.
+5. Episode/site trackers with notifications, which need a server-side scheduled job (done: Web Push for AniList episodes and manhuagui chapters; any scheduler can call the check, because the host isn't chosen yet). Vercel's free plan only runs cron once a day.
 6. Go public, keeping each user's data in their own Google Drive.
 
 ## Commands
@@ -29,7 +29,7 @@ npm run lint           # ESLint (next lint no longer exists in Next 16)
 npm run format         # Prettier; data/ is excluded via .prettierignore
 npx tsc --noEmit       # typecheck; needs a build or `next dev` first for the generated types
 npx tsc --noEmit -p src/sw   # typecheck the service worker (its own tsconfig, webworker lib)
-npm test               # Vitest: src/**/*.test.ts (sync merge and engine, launch params, discover feeds)
+npm test               # Vitest: src/**/*.test.ts (sync merge and engine, launch params, discover feeds, tracker)
 npx vitest run src/lib/sync/merge.test.ts -t "newer edit"   # one file / one test
 node scripts/generate-icons.mjs   # regenerate every app icon (sharp); edit this, not the PNGs
 ```
@@ -43,15 +43,16 @@ Vitest covers pure logic only. To check UI behaviour, drive the running app in a
 - A production build runs the service worker, and Drive calls then go through it. Playwright only routes, and applies `setOffline` to, service-worker requests when run with `PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1`. Without it the fake Drive is bypassed.
 - To check installability, call CDP `Page.getInstallabilityErrors` through `context.newCDPSession(page)`. To test the install button, dispatch a synthetic `beforeinstallprompt` `Event` with `prompt` and `userChoice` attached. iOS needs an iPhone user agent; fake standalone mode by defining `Navigator.prototype.standalone` in an init script.
 - To simulate offline for the service worker, stop the server rather than calling `setOffline`, which did not stop the worker's own requests even with the flag above.
+- To test 更新提醒 end to end, build with throwaway VAPID keys (`npx web-push generate-vapid-keys`) and run `next start` with `CRON_SECRET`, a scratch `TRACK_FILE` and `TRACK_MANGA_HOURS=0`. Preload a module that answers manhuagui pages and the AniList `mediaId_in` query from a control file the test edits between rounds. Have it replace `https.request` for `fcm.googleapis.com`: web-push uses that, not `fetch`. Log each push's body, and decrypt it with `http_ece` (a web-push dependency) using a P-256 key pair you made for the fake device. Headless Chromium has no push service, so stub `PushManager.prototype.subscribe`/`getSubscription` in an init script, returning that fake device. Launch with `channel: "chromium"`: the default headless shell reports `Notification.permission` as `"denied"` even when granted. CDP `ServiceWorker.deliverPushMessage` exercises the worker's `push` handler; read the result back with `registration.getNotifications()`.
 - To test 发现 without AniList/TMDB (or without network to them), start the server with `NODE_OPTIONS="--import ./fake-upstream.mjs"`: a module that replaces `globalThis.fetch` and answers `https://graphql.anilist.co` and `https://api.themoviedb.org/` from fixtures. Next wraps whatever `fetch` it finds, so its fetch cache still runs and the whole route is exercised. Serve posters with `context.route` on `s4.anilist.co` and `image.tmdb.org`. Set any `TMDB_API_KEY` at build time, or the 电影 feed shows its setup notice.
 
 **Installing packages.** npm 10's resolver can crash with `Cannot read properties of null (reading 'edgesOut')` while resolving optional peer loops, as Vitest's do. If `npm install <pkg>` hits that, retry with `--legacy-peer-deps`. A plain `npm install`/`npm ci` from the lockfile works.
 
 ## Architecture
 
-The app is a single client-side page: `src/app/page.tsx` renders `src/components/MediaLog.tsx` (`"use client"`), which holds all state. The only server code is Google sign-in (`src/auth.ts` and `src/app/api/auth/[...nextauth]/route.ts`) and the 发现 feeds (`src/app/api/discover/[feed]/route.ts`).
+The app is a single client-side page: `src/app/page.tsx` renders `src/components/MediaLog.tsx` (`"use client"`), which holds all state. The only server code is Google sign-in (`src/auth.ts` and `src/app/api/auth/[...nextauth]/route.ts`), the 发现 feeds (`src/app/api/discover/[feed]/route.ts`) and 更新提醒 (`src/app/api/track/[action]/route.ts`).
 
-`page.tsx` passes `syncEnabled` (all three auth env vars set) and `moviesEnabled` (`TMDB_API_KEY` set). The page is statically prerendered, so `next build` captures them; after changing the env, rebuild. `next dev` re-reads it.
+`page.tsx` passes `syncEnabled` (all three auth env vars set), `moviesEnabled` (`TMDB_API_KEY` set) and `pushKey` (the VAPID public key, when reminders are configured). The page is statically prerendered, so `next build` captures them; after changing the env, rebuild. `next dev` re-reads it.
 
 `MediaLog` has two sections, `library` (the regions) and `discover` (发现); `section`, `region` and `feed` are its state. The desktop sidebar lists both; on phones a 片单 / 发现 switch in the top bar picks the section, and the second row shows its regions or feeds.
 
@@ -59,6 +60,7 @@ The components under `src/components/`:
 
 - `Chrome.tsx` holds the desktop `Sidebar` and the phone `MobileBar`. Both show the region and 发现 nav, the save/sync status, the account (from `Account.tsx`), import/export, and the install entry (from `Pwa.tsx`).
 - `Discover.tsx` is the 发现 section: the timetable and the work grids. `useFeed.ts` loads a feed.
+- `Reminders.tsx` is the 更新提醒 dialog; `useReminders.ts` holds its state. Both the sidebar and the phone ⋯ menu open it.
 - `LibraryHeader.tsx` has the title, the watch-state tabs, and the search, filter and sort row.
 - `ItemList.tsx` has the rows, the loading skeleton and the empty states.
 - `ItemDialog.tsx` is the add/edit form. It is a shadcn `Dialog` on desktop and a vaul `Drawer` (swipe-to-dismiss bottom sheet) on phones. `MediaLog` keeps the edit target separate from the open flag, so the closing animation still has content to show.
@@ -154,6 +156,30 @@ The components under `src/components/`:
 - **Client.** `useFeed` keeps results in memory for the session (fresh for 10 min; older copies show while reloading, and stay if the reload fails). Offline, Serwist's default `/api/` rule (network-first, cache `apis`) serves the last copy. Posters come straight from the CDNs as plain `<img>`, not `next/image`. The service worker leaves them alone (`NetworkOnly`), because opaque responses count about 7 MB each against storage quota. Covers fall back to the AniList average colour, then the category icon. Only `https` links and posters are used.
 - **Credit.** TMDB's terms require the notice in `Credit` ("This product uses the TMDB API but is not endorsed or certified by TMDB.") and, for a public site, their logo in an about/credits page, which is still to do (step 6).
 - **Testing.** Normalisers, paging and errors are tested against a stubbed `fetch` with fixtures shaped like the documented schemas. They were written without access to the live APIs, so check against the real ones when you can.
+
+**更新提醒** (`src/lib/track/`, `src/app/api/track/[action]/route.ts`, `src/components/useReminders.ts`, `Reminders.tsx`, the push handlers in `src/sw/sw.ts`).
+
+- **What is followed** (`targets.ts`). Items whose watch state is 看着: 动画 with an AniList link (target `anilist:<id>`) and 漫画 with a manhuagui link on any of its hosts (target `manhuagui:<id>`). The browser derives the list (`followsOf`) and sends it. The server never sees the rest of the library, and it stores only targets, names and progress (for the notification text) per device.
+- **Devices.** A device is identified only by its push subscription; there is no sign-in. Its id is a hash of the endpoint (`subscriberId`). `useReminders` re-sends the follow list 3 s after it changes, and at least daily, using a fingerprint in `localStorage` (`medialog:reminders`). If `/status` or `/test` answers 404 because the server lost the device, it registers again.
+- **Server input is untrusted.** `cleanFollows` keeps well-formed targets only, at most 500. `cleanSub` accepts only `https` endpoints on the browsers' push services (`isPushEndpoint`), because the server POSTs to whatever endpoint it is given. At most 200 devices. `/check` needs `Authorization: Bearer $CRON_SECRET`, compared in constant time. Before going public (step 6), subscribing needs real limits, or sign-in.
+- **A round** (`engine.ts` `runCheck`, from `GET`/`POST /api/track/check`).
+  - **Anime.** One AniList `airingSchedules(mediaId_in…)` request covers the episodes aired since the last round. The window is an hour on the first round and at most two days. Only each show's newest episode is notified. If AniList fails, `lastRun` isn't advanced, so the window isn't skipped.
+  - **Manga.** Due comics (not checked for `TRACK_MANGA_HOURS`, default 6) are checked oldest first, three at a time, until a 40 s budget is spent (`maxDuration = 60`).
+  - **First sightings.** The first look at a comic only records it, so enabling with 131 comics doesn't announce 131 updates.
+  - **Order.** State is saved before sending, so a failed send is dropped rather than repeated.
+  - **Messages.** More than three updates for one device become one summary. A 404/410 from the push service removes the device. States of targets nobody follows are dropped.
+  - Sources, store and sender are injected, and `engine.test.ts` drives it with fakes.
+- **manhuagui** (`manhuagui.ts`). The newest chapter is the chapter link (`/comic/<id>/<chapter>.html`) with the highest chapter id, because ids grow as chapters are uploaded. That avoids depending on the 「更新至」 status markup, which couldn't be checked from the build environment. Adult-flagged comics hide the list LZString-compressed in `__VIEWSTATE` (`lz-string`). A page with no chapter links throws, and the dialog lists it as 读取失败. Requests send a browser User-Agent and Referer. `MANHUAGUI_ORIGIN` can switch the host.
+- **Store** (`store.ts`). With Upstash Redis REST env vars (`UPSTASH_REDIS_REST_URL`/`_TOKEN`, or Vercel's `KV_REST_API_URL`/`_TOKEN`) it uses Upstash: hashes `medialog:subs` and `medialog:state`, plus key `medialog:lastrun`, all through `/pipeline`. Otherwise it uses a JSON file (`TRACK_FILE`, default `.data/track.json`, gitignored). Writes are serialised in-process and done by write-then-rename. On serverless hosts (`VERCEL`, `NETLIFY`, `AWS_LAMBDA_FUNCTION_NAME`) the file store is refused, since their disks don't last.
+- **Push** (`push.ts`, `config.ts`). `web-push` signs with `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`, with a TTL of 12 h. `config.ts` doesn't import web-push, so `page.tsx` can read the public key cheaply. Payloads are `{ title, body, url, tag }`. The worker shows them with `renotify`, the app icon and `public/icons/badge-96.png` (a white glyph, made by `generate-icons.mjs`). Tapping a manga update opens the comic page; an anime update focuses the app or opens it.
+- **Client states** (`useReminders`):
+  - `unconfigured`: the server has no keys or store.
+  - `unsupported`: no Push API, or no service worker (so always under `next dev`).
+  - `install`: iOS outside the home-screen app.
+  - `blocked`: notification permission was denied.
+  - `off` / `on`: from `pushManager.getSubscription()`.
+  - If the server refuses a new subscription, the browser subscription is undone.
+- **Scheduling** is left to whatever hosts it (see README): an Upstash QStash schedule, Vercel Cron (once a day on Hobby; it sends `CRON_SECRET` itself), or crontab + curl. No `vercel.json` is committed, because the host isn't chosen.
 
 **Sorting quirks are intentional** and match v1:
 
