@@ -4,7 +4,14 @@
  * is persisted region-by-region to IndexedDB (lib/storage.ts) after every
  * edit. Only the regions an edit touched are rewritten. */
 
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { MotionConfig, motion } from "motion/react";
 import { FileUp, Plus, SearchX } from "lucide-react";
 import { toast } from "sonner";
@@ -33,8 +40,10 @@ import {
   type ItemFields,
   type Library,
   type Region,
+  type RegionFile,
 } from "@/lib/schema";
 import { loadLibrary, saveRegion } from "@/lib/storage";
+import { openTabChannel } from "@/lib/tabs";
 import {
   downloadJson,
   parseImport,
@@ -42,6 +51,7 @@ import {
   type Imported,
 } from "@/lib/transfer";
 import { MobileBar, Sidebar, type StorageState } from "./Chrome";
+import { useDriveSync } from "./useDriveSync";
 import { ItemDialog, type DialogTarget } from "./ItemDialog";
 import { EmptyState, ItemList, ListSkeleton, type Flash } from "./ItemList";
 import { LibraryHeader } from "./LibraryHeader";
@@ -52,7 +62,8 @@ const noFilters = (): Filters => ({
   watch: new Set(),
 });
 
-export function MediaLog() {
+/** `syncEnabled`: Google sign-in is configured on this server (see src/auth.ts). */
+export function MediaLog({ syncEnabled }: { syncEnabled: boolean }) {
   const [library, setLibrary] = useState<Library | null>(null);
   const [storage, setStorage] = useState<StorageState>("loading");
   const [region, setRegion] = useState<Region>(REGIONS[0]);
@@ -72,6 +83,37 @@ export function MediaLog() {
   const libRef = useRef<Library | null>(null);
   const pendingWrites = useRef(0);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  /* ---------------------------------------------------------- drive sync */
+
+  // Stable, and always reading the latest library: the sync engine calls
+  // these long after the render that created them.
+  const getLocal = useCallback(() => libRef.current!, []);
+  /** A region merged by sync: show and store it, but don't sync it again. */
+  const tabs = useRef<ReturnType<typeof openTabChannel> | null>(null);
+  const setLocal = useCallback((region: Region, file: RegionFile) => {
+    const next = { ...libRef.current!, [region]: file };
+    libRef.current = next;
+    setLibrary(next);
+    saveRegion(next, region).catch((err) => console.error(err));
+    tabs.current?.announce(region, file);
+  }, []);
+
+  // Other tabs' saves (edits and sync results): adopt them, don't re-save.
+  useEffect(() => {
+    tabs.current = openTabChannel((region, file) => {
+      if (!libRef.current) return;
+      libRef.current = { ...libRef.current, [region]: file };
+      setLibrary(libRef.current);
+    });
+    return () => tabs.current?.close();
+  }, []);
+  const sync = useDriveSync({
+    enabled: syncEnabled,
+    ready: library !== null,
+    getLocal,
+    setLocal,
+  });
   const fileInput = useRef<HTMLInputElement>(null);
 
   /* ------------------------------------------------------------ storage */
@@ -103,6 +145,8 @@ export function MediaLog() {
   function commit({ library: next, touched }: Edit) {
     libRef.current = next;
     setLibrary(next);
+    sync.schedule(touched);
+    touched.forEach((r) => tabs.current?.announce(r, next[r]));
     if (storage === "unavailable") return;
     pendingWrites.current++;
     setStorage("saving");
@@ -363,6 +407,7 @@ export function MediaLog() {
     library,
     region,
     storage,
+    sync,
     onRegion: setRegion,
     onImport: pickFiles,
     onExport: exportSnapshot,

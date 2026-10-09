@@ -90,3 +90,26 @@ export function saveRegion(lib: Library, region: Region): Promise<void> {
     TIMEOUT_MS,
   );
 }
+
+/* --------------------------------------------- small values (sync state) */
+
+export function kvGet<T>(name: string): Promise<T | undefined> {
+  return withTimeout(
+    request("readonly", (s) => s.get(name) as IDBRequest<T | undefined>),
+    TIMEOUT_MS,
+  );
+}
+
+export function kvSet(name: string, value: unknown): Promise<void> {
+  return withTimeout(
+    request("readwrite", (s) => s.put(value, name)).then(() => undefined),
+    TIMEOUT_MS,
+  );
+}
+
+export function kvDelete(name: string): Promise<void> {
+  return withTimeout(
+    request("readwrite", (s) => s.delete(name)).then(() => undefined),
+    TIMEOUT_MS,
+  );
+}

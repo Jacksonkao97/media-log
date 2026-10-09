@@ -20,6 +20,8 @@ npm run dev
 
 也可以导入之前用 **导出备份** 下载的 `medialog-YYYYMMDD.json`。导入会覆盖同名区域，覆盖前会先确认。
 
+想在手机、电脑之间同步？登录 Google 后会自动同步到你自己的 Google Drive，见下面「Google Drive 同步设置」。
+
 ## 功能
 
 - **区域** —— 日本 / 中国 / 韩国 / 欧美；电脑上在左侧栏，手机上在顶部标签
@@ -30,6 +32,7 @@ npm run dev
 - **排序** —— 名称（按拼音）、进度、最近更新、最近添加、状态、分类；没有数字的进度在升序和降序下都排在最后
 - **新增 / 编辑** —— 点任意一行即可编辑；改「区域」会把作品搬到另一个区域
 - **手机友好** —— 底部弹出的编辑面板（可以下滑关闭）、右下角新增按钮、按钮都够大好点
+- **Google Drive 同步** —— 多台设备自动同步，每天一份快照（见下文）
 - 跟随系统深色 / 浅色
 
 ## 开发
@@ -37,6 +40,7 @@ npm run dev
 界面用 [shadcn/ui](https://ui.shadcn.com)（组件源码在 `src/components/ui/`）和 [Motion](https://motion.dev) 做动画。
 
 ```bash
+npm test               # 单元测试（同步合并逻辑）
 npm run build          # 生产构建
 npm run lint           # ESLint
 npm run format         # Prettier（不会动 data/）
@@ -45,7 +49,7 @@ npm run format         # Prettier（不会动 data/）
 ## 路线图
 
 1. ~~把旧版界面搬到 Next.js~~ ✅
-2. Google 登录 + 自动同步到 Drive（四个区域文件 + 每天一份带日期的快照）
+2. ~~Google 登录 + 自动同步到 Drive（四个区域文件 + 每天一份带日期的快照）~~ ✅
 3. 做成可安装的 PWA，手机上像 App 一样用
 4. 新番 / 新电影资讯（AniList、TMDB）
 5. 追更提醒（新一集 / 网站更新时通知）
@@ -88,10 +92,65 @@ npm run format         # Prettier（不会动 data/）
 
 `progress` 之所以是字符串而不是数字，是因为原始数据本来就混着「话 / 卷 / 剧场版 / 短篇」几种计数方式，强行转成数字会丢信息。
 
-## 备份
+## 备份与同步
 
 - **导出备份** 会把四个区域打包成一个 `medialog-YYYYMMDD.json` 下载下来，随时可以再导入。
-- 自动同步到 Google Drive 是路线图第 2 步，正在做。
+- **Google Drive 同步**：登录 Google 后自动同步，Drive 里会有：
+
+  ```
+  MediaLog/
+    日本.json  中国.json  韩国.json  欧美.json   ← 和 data/ 里的格式完全一样
+    snapshots/
+      medialog-2026-10-09.json                     ← 每天一份快照，格式和「导出备份」一样
+  ```
+
+  区域文件每次都**原地更新**（Drive 自己的版本历史能用，但只保留约 30 天），所以另外每天留一份快照，长期都在。要回到某一天：从 Drive 下载那天的快照，在应用里「导入」即可。
+
+### 同步什么时候发生
+
+- 打开应用时、每次修改后（约 1.5 秒后）、切回这个标签页时、联网恢复时，以及打开期间每 5 分钟一次
+- 没有变化时只查一下文件列表，不会重复上传或下载
+- 离线时照常编辑，联网后自动补上
+
+### 多台设备同时改
+
+每台设备都记得「上次同步时双方一致的版本」，所以能分清是谁改了什么（和 git 合并一个道理）：
+
+- 两边改了**不同的作品** → 都保留
+- 两边改了**同一部作品** → 以较晚的修改为准
+- 一边删除、另一边没动 → 删除
+- 一边删除、另一边**修改过** → 保留修改（宁可留下一条也不丢改动）
+
+## Google Drive 同步设置
+
+一次性的，大约 10 分钟。如果旧版 v1 用过 Drive 备份，**用同一个 Google Cloud 项目**最省事 —— 应用能找到 v1 建的 `MediaLog` 文件夹，第一次同步时会把里面的数据合并进来。
+
+1. 打开 [Google Cloud Console](https://console.cloud.google.com/)，选中（或新建）项目
+2. **APIs & Services → Library**，搜索 **Google Drive API**，点 Enable
+3. **Google Auth Platform**（旧名 OAuth consent screen）：
+   - 用户类型选 **External**，填应用名和你的邮箱
+   - **Audience → Test users** 里加上你自己的 Google 账号
+   - **Data access** 里加上 `.../auth/drive.file` 这个权限（非敏感权限，只能访问本应用自己建的文件）
+4. **Clients（Credentials）→ Create OAuth client**：
+   - Application type 选 **Web application**
+   - **Authorized redirect URIs** 加上 `http://localhost:3000/api/auth/callback/google`
+     （以后部署到网上，再加一条 `https://你的域名/api/auth/callback/google`）
+   - 创建后复制 **Client ID** 和 **Client secret**
+5. 在项目根目录把 `.env.example` 复制成 `.env.local`，填好：
+   ```bash
+   AUTH_SECRET=        # 随便一串长随机字符，比如 openssl rand -base64 32 的输出
+   AUTH_GOOGLE_ID=     # Client ID
+   AUTH_GOOGLE_SECRET= # Client secret
+   ```
+   `.env.local` 不会被提交到 git。
+6. `npm run dev`，打开 `http://localhost:3000`，点左下角 **登录 Google，同步到 Drive**
+
+**注意：**
+
+- 应用在 Google 那边处于「测试」状态时，**登录每 7 天会失效一次**（Google 的规定），应用会提示「重新登录」，点一下就好。在 Google Auth Platform 里把应用**发布（Publish app）**就没有这个限制；只用 `drive.file` 这种非敏感权限，个人使用通常不需要 Google 审核。
+- 登录时 Google 会列出权限，**要勾选 Google Drive 那一项**，否则无法同步（应用会提示重新登录）。
+- 用 `npm run build && npm start` 在本机跑生产版本、或者自己架服务器时，还要加 `AUTH_TRUST_HOST=true`。部署到 Vercel 不需要。
+- 改了这几个环境变量后要重新 `npm run build`（`npm run dev` 不用）。
 
 ## 关于迁移
 

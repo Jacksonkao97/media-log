@@ -23,3 +23,12 @@ export function relDate(iso: string): string {
   if (days < 30) return `${days} 天前`;
   return fmtDate(iso);
 }
+
+/** 刚刚 / N 分钟前 / N 小时前, then the plain date — for "last synced". */
+export function relTime(ms: number, now = Date.now()): string {
+  const min = Math.floor((now - ms) / 60_000);
+  if (min < 1) return "刚刚";
+  if (min < 60) return `${min} 分钟前`;
+  if (min < 24 * 60) return `${Math.floor(min / 60)} 小时前`;
+  return fmtDate(new Date(ms).toISOString());
+}

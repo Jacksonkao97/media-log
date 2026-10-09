@@ -1,6 +1,6 @@
 /* App chrome: the desktop sidebar and the phone top bar. Both show the same
- * things — regions, where data is saved, import/export — laid out for their
- * screen. */
+ * things — regions, where data lives (browser / Google Drive), the account,
+ * import/export — laid out for their screen. */
 
 import { Download, Ellipsis, Library, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,26 +8,22 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { REGIONS, type Library as Lib, type Region } from "@/lib/schema";
 import { cn } from "@/lib/utils";
+import { AccountCard, StatusDot, SyncMenuItems } from "./Account";
+import type { DriveSync } from "./useDriveSync";
 
 export type StorageState =
   "loading" | "saving" | "saved" | "error" | "unavailable";
-
-const STORAGE: Record<StorageState, [dot: string, text: string]> = {
-  loading: ["bg-faint", "加载中…"],
-  saving: ["bg-primary animate-pulse", "保存中…"],
-  saved: ["bg-green", "已保存在本浏览器"],
-  error: ["bg-red", "保存失败"],
-  unavailable: ["bg-amber", "浏览器存储不可用，改动不会保存"],
-};
 
 interface Props {
   library: Lib | null;
   region: Region;
   storage: StorageState;
+  sync: DriveSync;
   onRegion: (r: Region) => void;
   onImport: () => void;
   onExport: () => void;
@@ -44,26 +40,6 @@ function Brand() {
   );
 }
 
-function StorageStatus({
-  state,
-  compact,
-}: {
-  state: StorageState;
-  compact?: boolean;
-}) {
-  const [dot, text] = STORAGE[state];
-  return (
-    <span
-      role="status"
-      className="text-muted-foreground inline-flex items-center gap-2 text-xs"
-      title={text}
-    >
-      <span aria-hidden className={cn("size-2 shrink-0 rounded-full", dot)} />
-      <span className={compact ? "sr-only" : ""}>{text}</span>
-    </span>
-  );
-}
-
 const count = (library: Lib | null, r: Region) =>
   library ? library[r].items.length : "–";
 
@@ -71,6 +47,7 @@ export function Sidebar({
   library,
   region,
   storage,
+  sync,
   onRegion,
   onImport,
   onExport,
@@ -117,7 +94,7 @@ export function Sidebar({
 
       <div className="mt-auto flex flex-col gap-3 border-t px-1 pt-4">
         <div className="px-2">
-          <StorageStatus state={storage} />
+          <AccountCard sync={sync} storage={storage} />
         </div>
         <div className="grid grid-cols-2 gap-2">
           <Button
@@ -148,6 +125,7 @@ export function MobileBar({
   library,
   region,
   storage,
+  sync,
   onRegion,
   onImport,
   onExport,
@@ -157,7 +135,7 @@ export function MobileBar({
       <div className="flex h-14 items-center gap-2 pr-1 pl-4">
         <Brand />
         <div className="flex-1" />
-        <StorageStatus state={storage} compact />
+        <StatusDot storage={storage} sync={sync} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -170,7 +148,11 @@ export function MobileBar({
               <Ellipsis aria-hidden className="size-5" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent align="end" className="w-56">
+            <SyncMenuItems sync={sync} phone />
+            {sync.status !== "disabled" && sync.status !== "checking" && (
+              <DropdownMenuSeparator />
+            )}
             <DropdownMenuItem
               onSelect={onImport}
               className="h-11 gap-3 text-[15px]"
