@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+/* Dark is the default; light follows the system setting. */
+:root {
+  --page: #0f1115;
+  --panel: #161920;
+  --raised: #1d212b;
+  --line: #272c38;
+  --line-soft: #20242e;
+  --ink: #e6e8ee;
+  --ink-dim: #9aa2b4;
+  --ink-faint: #6b7386;
+  --accent: #6ea8fe;
+  --accent-dim: #2b4a7d;
+  --green: #4ec9a5;
+  --amber: #e0b055;
+  --red: #e5786f;
+  --purple: #b48ce6;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --page: #f7f8fa;
+    --panel: #ffffff;
+    --raised: #eef0f5;
+    --line: #dde1e9;
+    --line-soft: #e8ebf1;
+    --ink: #1b1f28;
+    --ink-dim: #5b6376;
+    --ink-faint: #8b93a5;
+    --accent: #2f6fdb;
+    --accent-dim: #c3d6f5;
+    --green: #1e9c78;
+    --amber: #a97a12;
+    --red: #c94b40;
+    --purple: #7d4fc0;
+    color-scheme: light;
+  }
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-panel: var(--panel);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-ink: var(--ink);
+  --color-ink-dim: var(--ink-dim);
+  --color-ink-faint: var(--ink-faint);
+  --color-accent: var(--accent);
+  --color-accent-dim: var(--accent-dim);
+  --color-green: var(--green);
+  --color-amber: var(--amber);
+  --color-red: var(--red);
+  --color-purple: var(--purple);
+
+  --font-sans:
+    system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC",
+    "Hiragino Sans GB", sans-serif;
+  --font-mono:
+    ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+}
+
+body {
+  background: var(--page);
+  color: var(--ink);
+  font: 14px/1.5 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.55);
+}
