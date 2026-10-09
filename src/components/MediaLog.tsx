@@ -56,11 +56,13 @@ import {
 } from "@/lib/transfer";
 import { cn } from "@/lib/utils";
 import { parseView, viewPath, type Section, type View } from "@/lib/view";
+import { isSignedIn } from "./Account";
 import { MobileBar, Sidebar, type StorageState } from "./Chrome";
 import { Discover, type PickWork } from "./Discover";
 import { IosInstallDialog, useInstall } from "./Pwa";
 import { RemindersDialog } from "./Reminders";
 import { useReminders } from "./useReminders";
+import { markExported, useBackupReminder } from "./useBackupReminder";
 import { useDriveSync } from "./useDriveSync";
 import { ItemDialog, type DialogTarget } from "./ItemDialog";
 import { EmptyState, ItemList, ListSkeleton, type Flash } from "./ItemList";
@@ -411,9 +413,21 @@ export function MediaLog({
     if (!lib) return;
     const stamp = fmtDate(new Date().toISOString()).replace(/-/g, "");
     downloadJson(snapshot(lib), `medialog-${stamp}.json`);
+    markExported();
     const n = REGIONS.reduce((s, r) => s + lib[r].items.length, 0);
     toast.success(`已导出 ${n} 条到 medialog-${stamp}.json`);
   }
+
+  // Not signed in, the library lives only in this browser: suggest an
+  // export once in a while. Waits until we know nobody is signed in.
+  useBackupReminder(
+    library !== null &&
+      storage !== "unavailable" &&
+      sync.status !== "checking" &&
+      !isSignedIn(sync) &&
+      REGIONS.some((r) => library[r].items.length > 0),
+    exportSnapshot,
+  );
 
   const pickFiles = () => fileInput.current?.click();
   const clearFilters = () => {

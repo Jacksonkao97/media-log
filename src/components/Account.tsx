@@ -1,17 +1,21 @@
 "use client";
 
 /* Google account + Drive sync status: a card at the bottom of the desktop
- * sidebar, and menu entries in the phone's ⋯ menu. */
+ * sidebar, and menu entries in the phone's ⋯ menu. Import/export live here
+ * too: buttons under the card when signed out, account-menu entries when
+ * signed in. */
 
 import { useEffect, useState } from "react";
 import {
   Cloud,
   CloudOff,
+  Download,
   Ellipsis,
   FolderOpen,
   LogOut,
   RefreshCw,
   TriangleAlert,
+  Upload,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -27,6 +31,20 @@ import { relTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { StorageState } from "./Chrome";
 import type { DriveSync } from "./useDriveSync";
+
+export interface Transfer {
+  onImport: () => void;
+  onExport: () => void;
+  /** The library hasn't loaded yet. */
+  disabled: boolean;
+}
+
+/** Signed in to Google. False while the session is still being checked, so
+ *  the signed-out layout (import/export buttons) shows until we know. */
+export const isSignedIn = (sync: DriveSync) =>
+  sync.status !== "disabled" &&
+  sync.status !== "checking" &&
+  sync.account !== null;
 
 /** Re-renders every 30 s so "N 分钟前" stays current. */
 function useNow() {
@@ -100,32 +118,38 @@ function initials(name: string | null, email: string) {
   return (name || email).trim().slice(0, 1).toUpperCase();
 }
 
-/** Desktop sidebar card. */
+/** Desktop sidebar card: the data status, then either the sign-in button and
+ *  import/export, or the account with a menu that holds import/export. */
 export function AccountCard({
   sync,
   storage,
+  transfer,
 }: {
   sync: DriveSync;
   storage: StorageState;
+  transfer: Transfer;
 }) {
-  if (sync.status === "disabled" || sync.status === "checking") {
-    return <StatusDot storage={storage} sync={sync} withText />;
-  }
-  if (!sync.account) {
+  const { account } = sync;
+  if (!isSignedIn(sync) || !account) {
+    const canSignIn = sync.status !== "disabled" && sync.status !== "checking";
     return (
       <div className="flex flex-col gap-2">
-        <StatusDot storage={storage} sync={sync} withText />
-        <Button variant="outline" onClick={sync.signIn} className="w-full">
-          <Cloud aria-hidden />
-          登录 Google 同步
-        </Button>
+        <div className="px-2">
+          <StatusDot storage={storage} sync={sync} withText />
+        </div>
+        {canSignIn && (
+          <Button variant="outline" onClick={sync.signIn} className="w-full">
+            <Cloud aria-hidden />
+            登录 Google 同步
+          </Button>
+        )}
+        <TransferButtons transfer={transfer} />
       </div>
     );
   }
 
-  const { account } = sync;
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-2.5 px-2">
       <div className="flex items-center gap-2.5">
         <Avatar className="size-8">
           {account.image && (
@@ -152,7 +176,7 @@ export function AccountCard({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" side="top" className="w-52">
-            <SyncMenuItems sync={sync} />
+            <SyncMenuItems sync={sync} transfer={transfer} />
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -173,12 +197,40 @@ export function AccountCard({
   );
 }
 
-/** The account entries, shared by the sidebar's menu and the phone's ⋯ menu. */
+function TransferButtons({ transfer }: { transfer: Transfer }) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <Button
+        variant="outline"
+        disabled={transfer.disabled}
+        onClick={transfer.onImport}
+        title="导入 data/ 里的 JSON 或导出的备份"
+      >
+        <Upload aria-hidden />
+        导入
+      </Button>
+      <Button
+        variant="outline"
+        disabled={transfer.disabled}
+        onClick={transfer.onExport}
+        title="下载所有区域的合并快照"
+      >
+        <Download aria-hidden />
+        导出
+      </Button>
+    </div>
+  );
+}
+
+/** The account entries, shared by the sidebar's menu and the phone's ⋯ menu.
+ *  Signed in, import/export sit right under 立即同步. */
 export function SyncMenuItems({
   sync,
+  transfer,
   phone,
 }: {
   sync: DriveSync;
+  transfer: Transfer;
   phone?: boolean;
 }) {
   const item = phone ? "h-11 gap-3 text-[15px]" : "";
@@ -222,6 +274,22 @@ export function SyncMenuItems({
           立即同步
         </DropdownMenuItem>
       )}
+      <DropdownMenuItem
+        onSelect={transfer.onImport}
+        disabled={transfer.disabled}
+        className={item}
+      >
+        <Upload aria-hidden className={icon} />
+        导入数据
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onSelect={transfer.onExport}
+        disabled={transfer.disabled}
+        className={item}
+      >
+        <Download aria-hidden className={icon} />
+        导出备份
+      </DropdownMenuItem>
       {sync.folderUrl && (
         <DropdownMenuItem asChild className={item}>
           <a href={sync.folderUrl} target="_blank" rel="noreferrer noopener">

@@ -26,7 +26,7 @@ import { FEED_IDS, type FeedId } from "@/lib/discover/feeds";
 import { REGIONS, type Library as Lib, type Region } from "@/lib/schema";
 import { cn } from "@/lib/utils";
 import type { Section } from "@/lib/view";
-import { AccountCard, StatusDot, SyncMenuItems } from "./Account";
+import { AccountCard, StatusDot, SyncMenuItems, isSignedIn } from "./Account";
 import { FEEDS } from "./Discover";
 import { Segmented } from "./Segmented";
 import type { Install } from "./Pwa";
@@ -198,53 +198,36 @@ export function Sidebar({
         </ul>
       </nav>
 
-      <div className="mt-auto flex flex-col gap-3 border-t px-1 pt-4">
-        <div className="px-2">
-          <AccountCard sync={sync} storage={storage} />
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            variant="outline"
-            disabled={!library}
-            onClick={onImport}
-            title="导入 data/ 里的 JSON 或导出的备份"
-          >
-            <Upload aria-hidden />
-            导入
-          </Button>
-          <Button
-            variant="outline"
-            disabled={!library}
-            onClick={onExport}
-            title="下载所有区域的合并快照"
-          >
-            <Download aria-hidden />
-            导出
-          </Button>
-        </div>
-        <div className="flex flex-col">
+      <div className="mt-auto flex flex-col px-1 pb-3">
+        <Button
+          variant="ghost"
+          onClick={() => reminders.setOpen(true)}
+          className="text-muted-foreground w-full justify-start"
+        >
+          {remindersOn ? <BellRing aria-hidden /> : <Bell aria-hidden />}
+          更新提醒
+          {remindersOn && (
+            <span className="text-faint ml-auto text-xs">已开启</span>
+          )}
+        </Button>
+        {install.mode && (
           <Button
             variant="ghost"
-            onClick={() => reminders.setOpen(true)}
+            onClick={install.install}
             className="text-muted-foreground w-full justify-start"
           >
-            {remindersOn ? <BellRing aria-hidden /> : <Bell aria-hidden />}
-            更新提醒
-            {remindersOn && (
-              <span className="text-faint ml-auto text-xs">已开启</span>
-            )}
+            <MonitorDown aria-hidden />
+            安装应用
           </Button>
-          {install.mode && (
-            <Button
-              variant="ghost"
-              onClick={install.install}
-              className="text-muted-foreground w-full justify-start"
-            >
-              <MonitorDown aria-hidden />
-              安装应用
-            </Button>
-          )}
-        </div>
+        )}
+      </div>
+
+      <div className="border-t px-1 pt-4">
+        <AccountCard
+          sync={sync}
+          storage={storage}
+          transfer={{ onImport, onExport, disabled: !library }}
+        />
       </div>
     </aside>
   );
@@ -292,24 +275,33 @@ export function MobileBar({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <SyncMenuItems sync={sync} phone />
+            {/* Signed in, import/export come with the account entries. */}
+            <SyncMenuItems
+              sync={sync}
+              transfer={{ onImport, onExport, disabled: !library }}
+              phone
+            />
             {sync.status !== "disabled" && sync.status !== "checking" && (
               <DropdownMenuSeparator />
             )}
-            <DropdownMenuItem
-              onSelect={onImport}
-              className="h-11 gap-3 text-[15px]"
-            >
-              <Upload aria-hidden className="size-[18px]" />
-              导入数据
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={onExport}
-              className="h-11 gap-3 text-[15px]"
-            >
-              <Download aria-hidden className="size-[18px]" />
-              导出备份
-            </DropdownMenuItem>
+            {!isSignedIn(sync) && (
+              <>
+                <DropdownMenuItem
+                  onSelect={onImport}
+                  className="h-11 gap-3 text-[15px]"
+                >
+                  <Upload aria-hidden className="size-[18px]" />
+                  导入数据
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={onExport}
+                  className="h-11 gap-3 text-[15px]"
+                >
+                  <Download aria-hidden className="size-[18px]" />
+                  导出备份
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuItem
               onSelect={() => reminders.setOpen(true)}
               className="h-11 gap-3 text-[15px]"

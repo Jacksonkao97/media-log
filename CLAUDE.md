@@ -64,7 +64,11 @@ The app is one client-side component: `src/app/[[...view]]/page.tsx` renders `sr
 
 The components under `src/components/`:
 
-- `Chrome.tsx` holds the desktop `Sidebar` and the phone `MobileBar`. Both show the region and 发现 nav, the save/sync status, the account (from `Account.tsx`), import/export, and the install entry (from `Pwa.tsx`).
+- `Chrome.tsx` holds the desktop `Sidebar` and the phone `MobileBar`. Both show the region and 发现 nav, the save/sync status, the account (from `Account.tsx`), import/export, 更新提醒 and the install entry (from `Pwa.tsx`).
+  - At the bottom of the sidebar, 更新提醒 and 安装应用 sit above the account card.
+  - Import/export follow sign-in (`isSignedIn` in `Account.tsx`). Signed out, they are buttons under 登录 Google 同步. Signed in, they are entries in the account's ⋯ menu, right under 立即同步. The phone ⋯ menu follows the same rule.
+  - While the session is still `checking`, the signed-out layout shows. It is about as tall as the signed-in card, so the sidebar doesn't jump.
+- `useBackupReminder.ts` suggests 导出备份 to anyone not signed in, once 30 days have passed without an export, then again weekly until they export. It counts from `localStorage` `medialog:backup`: the last export, or the first check. `lib/backup.ts` holds the timing.
 - `Discover.tsx` is the 发现 section: the timetable and the work grids. `useFeed.ts` loads a feed.
 - `Reminders.tsx` is the 更新提醒 dialog; `useReminders.ts` holds its state. Both the sidebar and the phone ⋯ menu open it.
 - `LibraryHeader.tsx` has the title, the watch-state tabs, and the search, filter and sort row.
@@ -206,7 +210,7 @@ The components under `src/components/`:
 - **Icons.** All icons come from `lucide-react`. Don't use emoji or unicode glyphs as icons. Decorative icons get `aria-hidden`, and icon-only buttons need an `aria-label`.
 - **Colour is never the only signal.** Watch and status show a dot plus the word (`Tag`). Categories differ by icon shape as well as tint (`CategoryTile`).
 - **Phone layout.** The breakpoint is `md` (768px), and phone-only styles use `max-md:`. On phones:
-  - The sidebar becomes `MobileBar`, with region tabs and a ⋯ menu for import/export.
+  - The sidebar becomes `MobileBar`, with region tabs and a ⋯ menu for the account, import/export, 更新提醒 and install.
   - Adding is a floating button.
   - Category, status and sort sit behind a 筛选 toggle.
   - The editor becomes a vaul bottom sheet, which can be swiped down to close.
