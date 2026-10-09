@@ -1,0 +1,148 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Theme tokens, using shadcn/ui's names so its components work unmodified.
+ * Dark is the default; light follows the system setting (Tailwind's `dark:`
+ * variant is the matching media query).
+ *
+ * Every text colour clears 4.5:1 against --background, --card and --muted in
+ * its own theme — re-check if you change one. Note that shadcn's `accent` is
+ * a subtle hover background; the brand colour is `primary`. */
+:root {
+  --radius: 0.625rem;
+
+  --background: #0b0c10;
+  --foreground: #eceef3;
+  --card: #121319;
+  --card-foreground: #eceef3;
+  --popover: #15161d;
+  --popover-foreground: #eceef3;
+  --primary: #8b8ef9;
+  --primary-foreground: #0b0c10;
+  --primary-soft: #24264d;
+  --secondary: #1a1c24;
+  --secondary-foreground: #eceef3;
+  --muted: #1a1c24;
+  --muted-foreground: #a3a8b8;
+  --faint: #848a9b;
+  --accent: #1f2129;
+  --accent-foreground: #eceef3;
+  --destructive: #f07167;
+  --border: #262935;
+  --divider: #1c1e27;
+  --input: #2a2d39;
+  --ring: #8b8ef9;
+  --knob: #2c2f3d;
+
+  --green: #3ecf8e;
+  --amber: #f2b84b;
+  --red: #f07167;
+  --purple: #b794f6;
+  --sky: #5fb4f5;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --background: #f6f7f9;
+    --foreground: #14161c;
+    --card: #ffffff;
+    --card-foreground: #14161c;
+    --popover: #ffffff;
+    --popover-foreground: #14161c;
+    --primary: #4f46e5;
+    --primary-foreground: #ffffff;
+    --primary-soft: #e4e4fc;
+    --secondary: #eef0f4;
+    --secondary-foreground: #14161c;
+    --muted: #eef0f4;
+    --muted-foreground: #4f5566;
+    --faint: #626879;
+    --accent: #eceef3;
+    --accent-foreground: #14161c;
+    --destructive: #c9372f;
+    --border: #e2e5eb;
+    --divider: #eceef2;
+    --input: #dfe2e8;
+    --ring: #4f46e5;
+    --knob: #ffffff;
+
+    --green: #0b7651;
+    --amber: #955700;
+    --red: #c9372f;
+    --purple: #7445d6;
+    --sky: #1767c7;
+    color-scheme: light;
+  }
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-divider: var(--divider);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-knob: var(--knob);
+
+  --color-green: var(--green);
+  --color-amber: var(--amber);
+  --color-red: var(--red);
+  --color-purple: var(--purple);
+  --color-sky: var(--sky);
+
+  /* System CJK fonts first: they are already installed, so nothing is
+   * downloaded. Noto Sans SC covers Android/Linux. */
+  --font-sans:
+    system-ui, -apple-system, "PingFang SC", "HarmonyOS Sans SC", "MiSans",
+    "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* A fallback for elements without their own focus ring; in this layer so
+   * component utilities (outline-none + ring) win. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
