@@ -4,6 +4,7 @@
  * their screen. */
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 import {
   Bell,
   BellRing,
@@ -131,6 +132,24 @@ function TabButton({
   );
 }
 
+/** The privacy policy and terms. Google's consent screen asks for both, and
+ *  for the home page to link to the policy. */
+function LegalLinks({ className }: { className?: string }) {
+  return (
+    <nav
+      aria-label="隐私政策与服务条款"
+      className={cn("text-faint flex gap-3 text-xs", className)}
+    >
+      <Link href="/privacy" className="hover:text-foreground">
+        隐私政策
+      </Link>
+      <Link href="/terms" className="hover:text-foreground">
+        服务条款
+      </Link>
+    </nav>
+  );
+}
+
 const count = (library: Lib | null, r: Region) =>
   library ? library[r].items.length : "–";
 
@@ -237,6 +256,7 @@ export function Sidebar({
             storage={storage}
             transfer={{ onImport, onExport, disabled: !library }}
           />
+          <LegalLinks className="mt-3 px-2" />
         </div>
       </div>
     </aside>
@@ -340,6 +360,21 @@ export function MobileBar({
                 安装到主屏幕
               </DropdownMenuItem>
             )}
+            <DropdownMenuSeparator />
+            {(
+              [
+                ["/privacy", "隐私政策"],
+                ["/terms", "服务条款"],
+              ] as const
+            ).map(([href, label]) => (
+              <DropdownMenuItem
+                key={href}
+                asChild
+                className="text-muted-foreground h-10 text-[13px]"
+              >
+                <Link href={href}>{label}</Link>
+              </DropdownMenuItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

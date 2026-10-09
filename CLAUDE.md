@@ -16,7 +16,7 @@ UI text and the README are Simplified Chinese; code comments are English.
 2. Google sign-in plus automatic Drive sync: the four region files, plus a daily dated snapshot, because Drive only keeps old versions for about 30 days (done).
 3. Make it an installable PWA so it works on phones, including offline (done).
 4. "Latest anime/movies" using AniList (anime/manga, including airing schedules) and TMDB (movies) (done).
-5. Episode/site trackers with notifications, which need a server-side scheduled job (done: Web Push for AniList episodes and manhuagui chapters; any scheduler can call the check, because the host isn't chosen yet). Vercel's free plan only runs cron once a day.
+5. Episode/site trackers with notifications, which need a server-side scheduled job (done: Web Push for AniList episodes and manhuagui chapters; any scheduler can call the check). The site is hosted on Vercel, whose free plan only runs cron once a day. 更新提醒 is switched off for now (see below).
 6. Go public, keeping each user's data in their own Google Drive.
 
 ## Commands
@@ -197,7 +197,7 @@ The components under `src/components/`:
   - `blocked`: notification permission was denied.
   - `off` / `on`: from `pushManager.getSubscription()`.
   - If the server refuses a new subscription, the browser subscription is undone.
-- **Scheduling** is left to whatever hosts it (see README): an Upstash QStash schedule, Vercel Cron (once a day on Hobby; it sends `CRON_SECRET` itself), or crontab + curl. No `vercel.json` is committed, because the host isn't chosen.
+- **Scheduling** is left to whatever hosts it (see README): an Upstash QStash schedule, Vercel Cron (once a day on Hobby; it sends `CRON_SECRET` itself), or crontab + curl. The site is on Vercel, but no `vercel.json` is committed: Next.js needs no config there, and the only use would be this cron, which waits until 更新提醒 is switched back on.
 
 **Sorting quirks are intentional** and match v1:
 
@@ -232,6 +232,13 @@ The components under `src/components/`:
   - the floating add button popping in;
   - the empty states fading in.
 - **Keep motion out of plain rows.** The list renders 700+ rows, so only the row that changed gets motion elements; every other row renders plain elements.
+
+**Privacy policy and terms** (`src/app/privacy/page.tsx`, `src/app/terms/page.tsx`, `src/components/LegalPage.tsx`).
+
+- Google's consent screen needs both before the app can be published. The sidebar and the phone ⋯ menu link to them, because Google also wants the home page to link to the policy.
+- They are Chinese first with an English version below, and they describe exactly what the app stores and sends. That includes the Limited Use statement for Google user data.
+- When that changes, update them and `LEGAL_UPDATED`: for example a new third-party host, server-side storage, or 更新提醒 switched back on (it would store push subscriptions and follow lists on the server).
+- `CONTACT_EMAIL` is the public contact address, and should match the consent screen's support email.
 
 **Security.**
 
