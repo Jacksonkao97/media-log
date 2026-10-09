@@ -5,7 +5,12 @@
  * edit. Only the regions an edit touched are rewritten. */
 
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { MotionConfig, motion } from "motion/react";
 import { FileUp, Plus, SearchX } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   addItem,
   bumpItem,
@@ -38,10 +43,8 @@ import {
 } from "@/lib/transfer";
 import { MobileBar, Sidebar, type StorageState } from "./Chrome";
 import { ItemDialog, type DialogTarget } from "./ItemDialog";
-import { EmptyState, ItemList, ListSkeleton } from "./ItemList";
+import { EmptyState, ItemList, ListSkeleton, type Flash } from "./ItemList";
 import { LibraryHeader } from "./LibraryHeader";
-import { useToast } from "./Toast";
-import { Button } from "./ui";
 
 const noFilters = (): Filters => ({
   category: new Set(),
@@ -57,8 +60,11 @@ export function MediaLog() {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<Filters>(noFilters);
+  // What the editor is for, and whether it is open. Kept apart so the closing
+  // animation still has something to show.
   const [dialog, setDialog] = useState<DialogTarget | null>(null);
-  const [toastNode, toast] = useToast();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [flash, setFlash] = useState<Flash>(null);
 
   const deferredQuery = useDeferredValue(query);
   /* The latest library, for handlers that run later than the render that
@@ -85,14 +91,12 @@ export function MediaLog() {
         libRef.current = emptyLibrary();
         setLibrary(libRef.current);
         setStorage("unavailable");
-        toast("浏览器存储不可用（隐私模式？），改动不会被保存", {
-          error: true,
-        });
+        toast.error("浏览器存储不可用（隐私模式？），改动不会被保存");
       });
     return () => {
       cancelled = true;
     };
-  }, [toast]);
+  }, []);
 
   /** Applies an edit and writes the touched regions. Failures are loud — a
    *  silent one would mean the user thinks their edit is saved when it is not. */
@@ -110,18 +114,25 @@ export function MediaLog() {
         pendingWrites.current--;
         console.error(err);
         setStorage("error");
-        toast(`保存失败：${err.message}`, { error: true });
+        toast.error(`保存失败：${err.message}`);
       });
   }
+
+  /** Highlights a row that just changed. */
+  const flashRow = (id: string) =>
+    setFlash((f) => ({ id, key: (f?.key ?? 0) + 1 }));
 
   /** Offers 撤销 that puts `item` back exactly as it was. */
   function undoable(text: string, region: Region, item: Item, index: number) {
     toast(text, {
+      duration: 5000,
       action: {
         label: "撤销",
-        run: () =>
-          libRef.current &&
-          commit(restoreItem(libRef.current, region, item, index)),
+        onClick: () => {
+          if (!libRef.current) return;
+          commit(restoreItem(libRef.current, region, item, index));
+          flashRow(item.id);
+        },
       },
     });
   }
@@ -178,13 +189,8 @@ export function MediaLog() {
     setSortDir(key === "createdAt" || key === "updatedAt" ? "desc" : "asc");
   }
 
-  function toggleFilter(kind: "category" | "status", value: string) {
-    setFilters((prev) => {
-      const set = new Set<string>(prev[kind]);
-      if (set.has(value)) set.delete(value);
-      else set.add(value);
-      return { ...prev, [kind]: set };
-    });
+  function setFilterValues(kind: "category" | "status", values: string[]) {
+    setFilters((prev) => ({ ...prev, [kind]: new Set(values) }));
   }
 
   /* -------------------------------------------------------------- CRUD */
@@ -197,9 +203,11 @@ export function MediaLog() {
       : addItem(lib, target, fields);
     if (!edit) return;
     commit(edit);
-    setDialog(null);
+    setDialogOpen(false);
     setRegion(target);
-    toast(dialog.item ? "已保存" : `已添加到 ${target}`);
+    // A new item is the last one in its region.
+    flashRow(dialog.item?.id ?? edit.library[target].items.at(-1)!.id);
+    toast.success(dialog.item ? "已保存" : `已添加到 ${target}`);
   }
 
   function remove() {
@@ -209,7 +217,7 @@ export function MediaLog() {
     const from = dialog.region;
     const index = lib[from].items.findIndex((x) => x.id === item.id);
     commit(deleteItem(lib, from, item.id));
-    setDialog(null);
+    setDialogOpen(false);
     undoable(`已删除「${item.name}」`, from, item, index);
   }
 
@@ -220,6 +228,7 @@ export function MediaLog() {
     if (!edit) return;
     const index = lib[region].items.findIndex((x) => x.id === item.id);
     commit(edit);
+    flashRow(item.id);
     const now = edit.library[region].items.find((x) => x.id === item.id);
     undoable(`「${item.name}」→ ${now?.progress}`, region, item, index);
   }
@@ -237,7 +246,7 @@ export function MediaLog() {
         };
       }
     } catch (err) {
-      toast(`导入失败：${(err as Error).message}`, { error: true });
+      toast.error(`导入失败：${(err as Error).message}`);
       return;
     }
 
@@ -258,7 +267,7 @@ export function MediaLog() {
 
     commit({ library: { ...lib, ...imported }, touched: regions });
     if (!imported[region]) setRegion(regions[0]);
-    toast(`已导入：${summary}`);
+    toast.success(`已导入：${summary}`);
   }
 
   function exportSnapshot() {
@@ -267,7 +276,7 @@ export function MediaLog() {
     const stamp = fmtDate(new Date().toISOString()).replace(/-/g, "");
     downloadJson(snapshot(lib), `medialog-${stamp}.json`);
     const n = REGIONS.reduce((s, r) => s + lib[r].items.length, 0);
-    toast(`已导出 ${n} 条到 medialog-${stamp}.json`);
+    toast.success(`已导出 ${n} 条到 medialog-${stamp}.json`);
   }
 
   const pickFiles = () => fileInput.current?.click();
@@ -275,7 +284,11 @@ export function MediaLog() {
     setQuery("");
     setFilters(noFilters());
   };
-  const openNew = () => setDialog({ region, item: null });
+  const openEditor = (target: DialogTarget) => {
+    setDialog(target);
+    setDialogOpen(true);
+  };
+  const openNew = () => openEditor({ region, item: null });
 
   /* ------------------------------------------------------------- render */
 
@@ -292,10 +305,12 @@ export function MediaLog() {
         title="还没有数据"
         actions={
           <>
-            <Button variant="primary" icon={FileUp} onClick={pickFiles}>
+            <Button onClick={pickFiles}>
+              <FileUp aria-hidden />
               导入数据
             </Button>
-            <Button icon={Plus} onClick={openNew}>
+            <Button variant="outline" onClick={openNew}>
+              <Plus aria-hidden />
               手动新增
             </Button>
           </>
@@ -311,7 +326,8 @@ export function MediaLog() {
         icon={Plus}
         title={`${region} 还没有作品`}
         actions={
-          <Button variant="primary" icon={Plus} onClick={openNew}>
+          <Button onClick={openNew}>
+            <Plus aria-hidden />
             新增作品
           </Button>
         }
@@ -323,7 +339,8 @@ export function MediaLog() {
         icon={SearchX}
         title="没有符合条件的作品"
         actions={
-          <Button icon={SearchX} onClick={clearFilters}>
+          <Button variant="outline" onClick={clearFilters}>
+            <SearchX aria-hidden />
             清除筛选
           </Button>
         }
@@ -335,7 +352,8 @@ export function MediaLog() {
     body = (
       <ItemList
         items={visible}
-        onEdit={(item) => setDialog({ region, item })}
+        flash={flash}
+        onEdit={(item) => openEditor({ region, item })}
         onBump={bump}
       />
     );
@@ -351,72 +369,89 @@ export function MediaLog() {
   };
 
   return (
-    <div className="flex min-h-dvh">
-      <Sidebar {...chrome} />
+    <MotionConfig reducedMotion="user">
+      <TooltipProvider delayDuration={300}>
+        <div className="flex min-h-dvh">
+          <Sidebar {...chrome} />
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <MobileBar {...chrome} />
-        <main className="mx-auto w-full max-w-5xl px-8 pt-8 pb-16 max-md:px-4 max-md:pt-5 max-md:pb-28">
-          <LibraryHeader
-            searchRef={searchRef}
-            region={region}
-            total={all.length}
-            shown={visible.length}
-            watchCounts={watchCounts}
-            query={query}
-            filters={filters}
-            sortKey={sortKey}
-            sortDir={sortDir}
-            onQuery={setQuery}
-            onToggle={toggleFilter}
-            onWatch={(w) =>
-              setFilters((prev) => ({
-                ...prev,
-                watch: new Set(w ? [w] : []),
-              }))
-            }
-            onSort={sortBy}
-            onSortDir={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
-            onClear={clearFilters}
-            onNew={openNew}
-            ready={library !== null}
-            showFilters={all.length > 0}
+          <div className="flex min-w-0 flex-1 flex-col">
+            <MobileBar {...chrome} />
+            <main className="mx-auto w-full max-w-5xl px-8 pt-8 pb-16 max-md:px-4 max-md:pt-5 max-md:pb-28">
+              <LibraryHeader
+                searchRef={searchRef}
+                region={region}
+                total={all.length}
+                shown={visible.length}
+                watchCounts={watchCounts}
+                query={query}
+                filters={filters}
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onQuery={setQuery}
+                onFilter={setFilterValues}
+                onWatch={(w) =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    watch: new Set(w ? [w] : []),
+                  }))
+                }
+                onSort={sortBy}
+                onSortDir={() =>
+                  setSortDir((d) => (d === "asc" ? "desc" : "asc"))
+                }
+                onClear={clearFilters}
+                onNew={openNew}
+                ready={library !== null}
+                showFilters={all.length > 0}
+              />
+              <div className="mt-3">{body}</div>
+            </main>
+          </div>
+
+          {/* Phone: the add button sits where the thumb is. */}
+          {library !== null && (
+            <motion.button
+              type="button"
+              onClick={openNew}
+              aria-label="新增作品"
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              whileTap={{ scale: 0.92 }}
+              transition={{ type: "spring", bounce: 0.3, duration: 0.4 }}
+              className="bg-primary text-primary-foreground focus-visible:ring-ring/50 fixed right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-40 inline-flex size-14 cursor-pointer items-center justify-center rounded-2xl shadow-lg outline-none focus-visible:ring-[3px] md:hidden"
+            >
+              <Plus aria-hidden className="size-6" />
+            </motion.button>
+          )}
+
+          <input
+            ref={fileInput}
+            type="file"
+            accept=".json,application/json"
+            multiple
+            hidden
+            onChange={(ev) => {
+              const files = Array.from(ev.target.files ?? []);
+              ev.target.value = ""; // allow picking the same files again
+              if (files.length) importFiles(files);
+            }}
           />
-          <div className="mt-3">{body}</div>
-        </main>
-      </div>
-
-      {/* Phone: the add button sits where the thumb is. */}
-      {library !== null && (
-        <button
-          type="button"
-          onClick={openNew}
-          aria-label="新增作品"
-          className="bg-accent text-accent-ink fixed right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-40 inline-flex size-14 cursor-pointer items-center justify-center rounded-2xl shadow-lg transition active:scale-95 md:hidden"
-        >
-          <Plus aria-hidden className="size-6" />
-        </button>
-      )}
-
-      <input
-        ref={fileInput}
-        type="file"
-        accept=".json,application/json"
-        multiple
-        hidden
-        onChange={(ev) => {
-          const files = Array.from(ev.target.files ?? []);
-          ev.target.value = ""; // allow picking the same files again
-          if (files.length) importFiles(files);
-        }}
-      />
-      <ItemDialog
-        target={dialog}
-        onSave={save}
-        onDelete={remove}
-        onClose={() => setDialog(null)}
-      />
-      {toastNode}
-    </div>
+          <ItemDialog
+            target={dialog}
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            onSave={save}
+            onDelete={remove}
+          />
+          {/* Phones: above the floating add button. */}
+          <Toaster
+            position="bottom-center"
+            mobileOffset={{
+              bottom: "calc(5.5rem + env(safe-area-inset-bottom))",
+            }}
+          />
+        </div>
+      </TooltipProvider>
+    </MotionConfig>
   );
 }

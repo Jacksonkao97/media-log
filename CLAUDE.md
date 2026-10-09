@@ -30,7 +30,11 @@ npm run format         # Prettier; data/ is excluded via .prettierignore
 npx tsc --noEmit       # typecheck; needs a build or `next dev` first for the generated types
 ```
 
-There is no test runner yet. To check behaviour, drive the running app in a browser. When automating the import with Playwright, pass files to `setInputFiles` as `{ name, mimeType, buffer }`: headless Chromium silently drops files whose path contains non-ASCII characters, such as `data/日本.json`.
+There is no test runner yet. To check behaviour, drive the running app in a browser. Some Playwright pitfalls:
+
+- Pass files to `setInputFiles` as `{ name, mimeType, buffer }`. Headless Chromium silently drops files whose path contains non-ASCII characters, such as `data/日本.json`.
+- The editor is a Radix `role="dialog"`, not a native `<dialog>`.
+- Single-choice toggle groups are `role="radiogroup"` with `radio` items. The multi-select chip groups are `role="toolbar"` with `aria-pressed` buttons.
 
 ## Architecture
 
@@ -41,15 +45,18 @@ The components under `src/components/`:
 - `Chrome.tsx` holds the desktop `Sidebar` and the phone `MobileBar`. Both show the region nav, the save status, and import/export.
 - `LibraryHeader.tsx` has the title, the watch-state tabs, and the search, filter and sort row.
 - `ItemList.tsx` has the rows, the loading skeleton and the empty states.
-- `ItemDialog.tsx` is the add/edit form.
-- `Toast.tsx` shows messages, optionally with an action such as 撤销.
-- `ui.tsx` has the shared primitives.
+- `ItemDialog.tsx` is the add/edit form. It is a shadcn `Dialog` on desktop and a vaul `Drawer` (swipe-to-dismiss bottom sheet) on phones. `MediaLog` keeps the edit target separate from the open flag, so the closing animation still has content to show.
+- `Segmented.tsx` is a single-choice ToggleGroup with a Motion knob that slides between options.
+- `media.tsx` holds how values look: `CategoryTile`, `Tag`, and the `CATEGORY` and `TAG_TONE` maps.
+- `ui/` is **shadcn/ui** (new-york style, vendored source; `components.json` is configured). Toasts use Sonner (`toast()` from `sonner`); `<Toaster>` is rendered in `MediaLog`.
+
+**Adding shadcn components.** On a normal machine, run `npx shadcn@latest add <name>`. The cloud environment's network policy blocks `ui.shadcn.com`, so the CLI fails there. Instead, copy the file from `shadcn-ui/ui` on GitHub (`apps/v4/registry/new-york-v4/ui/<name>.tsx`), then rewrite its imports: `"cn"` becomes `"@/lib/utils"`, and `@/registry/new-york-v4/ui/` becomes `@/components/ui/`. Install any npm dependencies it needs. These files may be edited; for example, `sonner.tsx` drops next-themes, and `hooks/use-mobile.ts` uses `useSyncExternalStore` to satisfy the React lint rules.
 
 **`src/lib/schema.ts` is the single source of truth for the data model.**
 
 - It defines the enum lists (`REGIONS`, `CATEGORIES`, `STATUSES`, `WATCHES`) and the types derived from them.
 - `normalise()` is the schema gate. Everything read from storage or an imported file passes through it. Unknown enum values are coerced to defaults, and missing ids or timestamps are filled in.
-- To add a value, change it here. Then give it a look in `src/components/ui.tsx`: categories need an icon and tint in `CATEGORY`, and watch/status values need a colour in `TAG_TONE`. Both are typed, so the compiler flags a missing one. A new region also goes in `tools/migrate.py`'s `REGIONS` and the README.
+- To add a value, change it here. Then give it a look in `src/components/media.tsx`: categories need an icon and tint in `CATEGORY`, and watch/status values need a colour in `TAG_TONE`. Both are typed, so the compiler flags a missing one. A new region also goes in `tools/migrate.py`'s `REGIONS` and the README.
 
 **The data format must stay compatible with v1.**
 
@@ -74,23 +81,31 @@ The components under `src/components/`:
 
 **Styling and UX conventions.**
 
-- **Tokens.** Tailwind v4. The theme tokens live in `src/app/globals.css` as CSS variables and are exposed as utilities such as `bg-panel`, `text-ink-dim` and `bg-accent/15`. The tokens are `--page`, `--panel`, `--raised`, `--line`, `--ink`, `--ink-dim`, `--ink-faint`, `--accent`, `--accent-ink`, `--knob`, `--green`, `--amber`, `--red`, `--purple` and `--sky`. Use the tokens, never raw colours.
-- **Contrast.** Every text colour clears 4.5:1 against `--page`, `--panel` and `--raised` in both themes. Re-check if you change one.
+- **Tokens.** Tailwind v4 with `tw-animate-css`. The theme tokens in `src/app/globals.css` use **shadcn's names**, so its components work unmodified: `background`, `foreground`, `card`, `popover`, `primary`, `secondary`, `muted`, `muted-foreground`, `accent`, `destructive`, `border`, `input`, `ring`.
+  - **`primary` is the brand colour.** shadcn's `accent` is only a subtle hover background.
+  - **Extras:** `faint` (tertiary text), `divider`, `knob` (the segmented selection), `primary-soft` (selected chips), and `green`, `amber`, `red`, `purple`, `sky` for statuses and categories.
+  - Use the tokens, never raw colours.
+- **Contrast.** Every text colour clears 4.5:1 against `background`, `card` and `muted` in both themes. Re-check if you change one.
 - **Themes.** Dark is the default, and light follows `prefers-color-scheme`.
-- **Icons.** All icons come from `lucide-react`. Don't use emoji or unicode glyphs as icons. Decorative icons get `aria-hidden`, and icon-only buttons go through `IconButton`, which requires a `label`.
+- **Icons.** All icons come from `lucide-react`. Don't use emoji or unicode glyphs as icons. Decorative icons get `aria-hidden`, and icon-only buttons need an `aria-label`.
 - **Colour is never the only signal.** Watch and status show a dot plus the word (`Tag`). Categories differ by icon shape as well as tint (`CategoryTile`).
 - **Phone layout.** The breakpoint is `md` (768px), and phone-only styles use `max-md:`. On phones:
   - The sidebar becomes `MobileBar`, with region tabs and a ⋯ menu for import/export.
   - Adding is a floating button.
   - Category, status and sort sit behind a 筛选 toggle.
-  - The dialog becomes a bottom sheet.
+  - The editor becomes a vaul bottom sheet, which can be swiped down to close.
   - The status and date columns fold into a line under the name.
 - **Phone sizing.**
   - Tap targets are at least 40px tall, with 8px gaps.
-  - Inputs use 16px text (`max-md:text-base`), because iOS Safari zooms into smaller inputs on focus.
+  - Inputs use 16px text, because iOS Safari zooms into smaller inputs on focus. shadcn's `Input` already does this with `text-base md:text-sm`.
   - Bars and sheets pad for `env(safe-area-inset-*)`.
 - **Sticky filter bar.** On desktop the filter bar sticks while the list scrolls. For that to work it must be a direct child of `<main>`: `LibraryHeader` returns a fragment for this reason. Wrapping it in a div silently breaks the sticking.
-- **Motion** stays subtle (150–200 ms) and is switched off under `prefers-reduced-motion`.
+- **Motion.** Animations come from `motion` (`motion/react`). `MediaLog` wraps the app in `<MotionConfig reducedMotion="user">`, and CSS transitions are also cut under `prefers-reduced-motion`. Keep it subtle:
+  - the knob sliding between segmented options;
+  - a highlight on the row that just changed, plus its progress number rolling in (driven by `flash` in `MediaLog`);
+  - the floating add button popping in;
+  - the empty states fading in.
+- **Keep motion out of plain rows.** The list renders 700+ rows, so only the row that changed gets motion elements; every other row renders plain elements.
 
 **Security.** React escapes text. Item `url`s render as links only when they are `http(s)`, because imported files are untrusted.
 

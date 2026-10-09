@@ -1,67 +1,110 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
-/* Theme tokens. Dark is the default; light follows the system setting.
- * Every text colour here clears 4.5:1 against --page, --panel and --raised
- * in its own theme — re-check if you change one. */
+/* Theme tokens, using shadcn/ui's names so its components work unmodified.
+ * Dark is the default; light follows the system setting (Tailwind's `dark:`
+ * variant is the matching media query).
+ *
+ * Every text colour clears 4.5:1 against --background, --card and --muted in
+ * its own theme — re-check if you change one. Note that shadcn's `accent` is
+ * a subtle hover background; the brand colour is `primary`. */
 :root {
-  --page: #0b0c10;
-  --panel: #121319;
-  --raised: #1a1c24;
-  --line: #262935;
-  --line-soft: #1c1e27;
-  --ink: #eceef3;
-  --ink-dim: #a3a8b8;
-  --ink-faint: #848a9b;
-  --accent: #8b8ef9;
-  --accent-ink: #0b0c10;
-  --accent-dim: #24264d;
+  --radius: 0.625rem;
+
+  --background: #0b0c10;
+  --foreground: #eceef3;
+  --card: #121319;
+  --card-foreground: #eceef3;
+  --popover: #15161d;
+  --popover-foreground: #eceef3;
+  --primary: #8b8ef9;
+  --primary-foreground: #0b0c10;
+  --primary-soft: #24264d;
+  --secondary: #1a1c24;
+  --secondary-foreground: #eceef3;
+  --muted: #1a1c24;
+  --muted-foreground: #a3a8b8;
+  --faint: #848a9b;
+  --accent: #1f2129;
+  --accent-foreground: #eceef3;
+  --destructive: #f07167;
+  --border: #262935;
+  --divider: #1c1e27;
+  --input: #2a2d39;
+  --ring: #8b8ef9;
   --knob: #2c2f3d;
+
   --green: #3ecf8e;
   --amber: #f2b84b;
   --red: #f07167;
   --purple: #b794f6;
   --sky: #5fb4f5;
-  --scrim: rgb(0 0 0 / 0.6);
   color-scheme: dark;
 }
 
 @media (prefers-color-scheme: light) {
   :root {
-    --page: #f6f7f9;
-    --panel: #ffffff;
-    --raised: #eef0f4;
-    --line: #e2e5eb;
-    --line-soft: #eceef2;
-    --ink: #14161c;
-    --ink-dim: #4f5566;
-    --ink-faint: #626879;
-    --accent: #4f46e5;
-    --accent-ink: #ffffff;
-    --accent-dim: #e4e4fc;
+    --background: #f6f7f9;
+    --foreground: #14161c;
+    --card: #ffffff;
+    --card-foreground: #14161c;
+    --popover: #ffffff;
+    --popover-foreground: #14161c;
+    --primary: #4f46e5;
+    --primary-foreground: #ffffff;
+    --primary-soft: #e4e4fc;
+    --secondary: #eef0f4;
+    --secondary-foreground: #14161c;
+    --muted: #eef0f4;
+    --muted-foreground: #4f5566;
+    --faint: #626879;
+    --accent: #eceef3;
+    --accent-foreground: #14161c;
+    --destructive: #c9372f;
+    --border: #e2e5eb;
+    --divider: #eceef2;
+    --input: #dfe2e8;
+    --ring: #4f46e5;
     --knob: #ffffff;
+
     --green: #0b7651;
     --amber: #955700;
     --red: #c9372f;
     --purple: #7445d6;
     --sky: #1767c7;
-    --scrim: rgb(15 18 30 / 0.4);
     color-scheme: light;
   }
 }
 
 @theme inline {
-  --color-page: var(--page);
-  --color-panel: var(--panel);
-  --color-raised: var(--raised);
-  --color-line: var(--line);
-  --color-line-soft: var(--line-soft);
-  --color-ink: var(--ink);
-  --color-ink-dim: var(--ink-dim);
-  --color-ink-faint: var(--ink-faint);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-faint: var(--faint);
   --color-accent: var(--accent);
-  --color-accent-ink: var(--accent-ink);
-  --color-accent-dim: var(--accent-dim);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-divider: var(--divider);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
   --color-knob: var(--knob);
+
   --color-green: var(--green);
   --color-amber: var(--amber);
   --color-red: var(--red);
@@ -77,24 +120,22 @@
     ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
 }
 
-body {
-  background: var(--page);
-  color: var(--ink);
-  font-family: var(--font-sans);
-  font-size: 14px;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  -webkit-tap-highlight-color: transparent;
-}
-
-dialog::backdrop {
-  background: var(--scrim);
-}
-
-/* One focus style everywhere; mouse clicks don't show it. */
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* A fallback for elements without their own focus ring; in this layer so
+   * component utilities (outline-none + ring) win. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

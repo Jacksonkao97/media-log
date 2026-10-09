@@ -1,11 +1,29 @@
+"use client";
+
+/* The add/edit form. Desktop: a centred shadcn Dialog. Phone: a vaul Drawer
+ * (bottom sheet you can swipe down to dismiss). Both render the same form. */
+
+import { useState, type FormEvent, type ReactNode } from "react";
+import { Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
-import { Trash2, X } from "lucide-react";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   CATEGORIES,
   REGIONS,
@@ -15,46 +33,75 @@ import {
   type ItemFields,
   type Region,
 } from "@/lib/schema";
-import { Button, CATEGORY, IconButton, Segmented } from "./ui";
+import { CATEGORY } from "./media";
+import { Segmented } from "./Segmented";
 
-/** What the dialog is open for: a new item in `region`, or editing `item` that lives in `region`. */
+/** What the dialog is for: a new item in `region`, or editing `item` that lives in `region`. */
 export type DialogTarget = { region: Region; item: Item | null };
 
 interface Props {
+  /** Kept after closing, so the closing animation still shows the form. */
   target: DialogTarget | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onSave: (fields: ItemFields, region: Region) => void;
   onDelete: () => void;
-  onClose: () => void;
 }
 
-/** Centred modal on desktop, bottom sheet on phones. */
-export function ItemDialog({ target, onSave, onDelete, onClose }: Props) {
-  const ref = useRef<HTMLDialogElement>(null);
+export function ItemDialog({
+  target,
+  open,
+  onOpenChange,
+  onSave,
+  onDelete,
+}: Props) {
+  const isMobile = useIsMobile();
+  if (!target) return null;
 
-  useEffect(() => {
-    const dlg = ref.current;
-    if (!dlg) return;
-    if (target && !dlg.open) dlg.showModal();
-    if (!target && dlg.open) dlg.close();
-  }, [target]);
+  const title = target.item ? "编辑作品" : "新增作品";
+  const description = target.item
+    ? `修改「${target.item.name}」`
+    : `添加到「${target.region}」`;
+  // The form remounts on every open (Radix unmounts closed content), so its
+  // state always starts from the current target.
+  const form = (
+    <EditorForm
+      key={target.item?.id ?? "new"}
+      target={target}
+      autoFocus={!isMobile && !target.item}
+      onSave={onSave}
+      onDelete={onDelete}
+      onCancel={() => onOpenChange(false)}
+    />
+  );
 
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={onOpenChange}>
+        <DrawerContent className="max-h-[92dvh]">
+          <DrawerHeader className="px-4 pt-3 pb-2 text-left">
+            <DrawerTitle className="text-lg">{title}</DrawerTitle>
+            <DrawerDescription className="sr-only">
+              {description}
+            </DrawerDescription>
+          </DrawerHeader>
+          {form}
+        </DrawerContent>
+      </Drawer>
+    );
+  }
   return (
-    <dialog
-      ref={ref}
-      onClose={onClose}
-      aria-labelledby="dlg-title"
-      className="border-line bg-panel text-ink m-auto max-h-[min(90dvh,760px)] w-[min(560px,calc(100vw-32px))] overflow-hidden rounded-2xl border p-0 shadow-2xl transition-[opacity,translate,scale] duration-200 ease-out max-md:mx-0 max-md:mt-auto max-md:mb-0 max-md:max-h-[92dvh] max-md:w-full max-md:max-w-full max-md:rounded-b-none max-md:border-x-0 max-md:border-b-0 starting:scale-[.98] starting:opacity-0 max-md:starting:translate-y-8 max-md:starting:scale-100"
-    >
-      {target && (
-        <DialogForm
-          key={target.item?.id ?? "new"}
-          target={target}
-          onSave={onSave}
-          onDelete={onDelete}
-          onCancel={onClose}
-        />
-      )}
-    </dialog>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[min(90dvh,760px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[560px]">
+        <DialogHeader className="px-6 pt-5 pb-3">
+          <DialogTitle className="text-lg">{title}</DialogTitle>
+          <DialogDescription className="sr-only">
+            {description}
+          </DialogDescription>
+        </DialogHeader>
+        {form}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -70,17 +117,18 @@ function initialFields({ item, region }: DialogTarget): ItemFields {
   };
 }
 
-// 16px text on phones: iOS Safari zooms the page into any smaller input on focus.
-const INPUT =
-  "border-line bg-page text-ink placeholder:text-ink-faint focus:border-accent focus:ring-accent/25 w-full rounded-lg border px-3 text-sm outline-none focus:ring-2 max-md:text-base";
+// shadcn's Input is 16px on phones already (iOS Safari zooms into anything smaller).
+const INPUT = "bg-background h-10 max-md:h-11";
 
-function DialogForm({
+function EditorForm({
   target,
+  autoFocus,
   onSave,
   onDelete,
   onCancel,
 }: {
   target: DialogTarget;
+  autoFocus: boolean;
   onSave: Props["onSave"];
   onDelete: () => void;
   onCancel: () => void;
@@ -108,30 +156,14 @@ function DialogForm({
   };
 
   return (
-    <form onSubmit={submit} className="flex max-h-[inherit] flex-col">
-      <header className="flex items-center justify-between gap-3 px-6 pt-5 pb-3 max-md:px-4">
-        {/* Grab handle: a visual cue that this is a sheet. */}
-        <span
-          aria-hidden
-          className="bg-line absolute top-2 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full md:hidden"
-        />
-        <h2 id="dlg-title" className="text-lg font-semibold">
-          {editing ? "编辑作品" : "新增作品"}
-        </h2>
-        <IconButton
-          icon={X}
-          label="关闭"
-          onClick={onCancel}
-          className="-mr-2"
-        />
-      </header>
-
-      <div className="flex flex-col gap-4 overflow-y-auto px-6 pb-5 max-md:px-4">
-        <Field label="名称" required>
-          <input
-            className={`${INPUT} h-10 max-md:h-11`}
+    <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+      <div className="flex flex-col gap-4 overflow-y-auto px-6 pt-1 pb-5 max-md:px-4">
+        <Field id="f-name" label="名称" required>
+          <Input
+            id="f-name"
+            className={INPUT}
             required
-            autoFocus={!editing}
+            autoFocus={autoFocus}
             autoComplete="off"
             placeholder="例如：全知读者视角"
             value={f.name}
@@ -141,21 +173,22 @@ function DialogForm({
 
         <div className="grid grid-cols-[1fr_auto] gap-4 max-md:grid-cols-1">
           <Field
+            id="f-progress"
             label="进度"
-            hint="写成「125」「第41卷」都行，列表里的 +1 会加第一个数字"
+            hint="「125」「第41卷」都行，+1 加第一个数字"
           >
-            <input
-              className={`${INPUT} h-10 max-md:h-11`}
+            <Input
+              id="f-progress"
+              className={INPUT}
               autoComplete="off"
               placeholder="125 / 第41卷 / 剧场版"
               value={f.progress}
               onChange={(e) => set("progress", e.target.value)}
             />
           </Field>
-          <Field label="观看状态" group>
+          <Field label="观看状态">
             <Segmented
               label="观看状态"
-              name="watch"
               value={f.watch}
               options={WATCHES}
               onChange={(v) => set("watch", v)}
@@ -164,10 +197,9 @@ function DialogForm({
         </div>
 
         <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
-          <Field label="分类" group>
+          <Field label="分类">
             <Segmented
               label="分类"
-              name="category"
               value={f.category}
               options={CATEGORIES}
               onChange={(v) => set("category", v)}
@@ -182,10 +214,9 @@ function DialogForm({
               }}
             />
           </Field>
-          <Field label="状态" group>
+          <Field label="状态">
             <Segmented
               label="状态"
-              name="status"
               value={f.status}
               options={STATUSES}
               onChange={(v) => set("status", v)}
@@ -195,7 +226,6 @@ function DialogForm({
 
         <Field
           label="区域"
-          group
           hint={
             editing && region !== target.region
               ? `保存后会从「${target.region}」移到「${region}」`
@@ -204,16 +234,16 @@ function DialogForm({
         >
           <Segmented
             label="区域"
-            name="region"
             value={region}
             options={REGIONS}
             onChange={setRegion}
           />
         </Field>
 
-        <Field label="链接">
-          <input
-            className={`${INPUT} h-10 max-md:h-11`}
+        <Field id="f-url" label="链接">
+          <Input
+            id="f-url"
+            className={INPUT}
             type="url"
             inputMode="url"
             autoComplete="off"
@@ -223,9 +253,10 @@ function DialogForm({
           />
         </Field>
 
-        <Field label="备注">
-          <textarea
-            className={`${INPUT} resize-y py-2`}
+        <Field id="f-note" label="备注">
+          <Textarea
+            id="f-note"
+            className="bg-background min-h-16"
             rows={2}
             placeholder="正常更新 / 停更2年了 / 无望第二季…"
             value={f.note}
@@ -234,20 +265,28 @@ function DialogForm({
         </Field>
       </div>
 
-      <footer className="border-line flex items-center gap-2 border-t px-6 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] max-md:px-4">
+      <footer className="flex items-center gap-2 border-t px-6 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] max-md:px-4">
         {editing && (
           <Button
-            variant="danger"
-            icon={Trash2}
+            type="button"
+            variant="ghost"
             onClick={onDelete}
-            className="-ml-2"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive -ml-2 max-md:h-11"
           >
+            <Trash2 aria-hidden />
             删除
           </Button>
         )}
         <div className="flex-1" />
-        <Button onClick={onCancel}>取消</Button>
-        <Button variant="primary" type="submit" className="min-w-20">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          className="max-md:h-11"
+        >
+          取消
+        </Button>
+        <Button type="submit" className="min-w-20 max-md:h-11">
           保存
         </Button>
       </footer>
@@ -255,44 +294,40 @@ function DialogForm({
   );
 }
 
-/** A labelled form row. `group` renders a fieldset/legend for radio groups. */
+/** A labelled form row. With an `id` the label points at that control; without
+ *  one (the segmented groups, which carry their own aria-label) it is a caption. */
 function Field({
+  id,
   label,
   required,
   hint,
-  group,
   children,
 }: {
+  id?: string;
   label: string;
   required?: boolean;
   hint?: string;
-  group?: boolean;
   children: ReactNode;
 }) {
   const caption = (
     <>
       {label}
-      {required && <span className="text-red ml-0.5">*</span>}
+      {required && <span className="text-destructive">*</span>}
     </>
   );
-  const help = hint && <span className="text-ink-faint text-xs">{hint}</span>;
-
-  if (group) {
-    return (
-      <fieldset className="flex min-w-0 flex-col gap-1.5">
-        <legend className="text-ink-dim mb-1.5 text-[13px] font-medium">
-          {caption}
-        </legend>
-        {children}
-        {help}
-      </fieldset>
-    );
-  }
   return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-ink-dim text-[13px] font-medium">{caption}</span>
+    <div className="flex min-w-0 flex-col gap-2">
+      {id ? (
+        <Label htmlFor={id} className="text-muted-foreground text-[13px]">
+          {caption}
+        </Label>
+      ) : (
+        <span className="text-muted-foreground text-[13px] leading-none font-medium">
+          {caption}
+        </span>
+      )}
       {children}
-      {help}
-    </label>
+      {hint && <span className="text-faint text-xs">{hint}</span>}
+    </div>
   );
 }
