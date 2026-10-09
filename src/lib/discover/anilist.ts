@@ -129,7 +129,11 @@ export function normaliseMedia(m: RawMedia, thumb = false): Work {
   return {
     key: `anilist:${type}:${m.id}`,
     ...titlesOf(m),
-    url: m.siteUrl || `https://anilist.co/${type}/${m.id}`,
+    // Only AniList's own pages: a link that came from the API must not be
+    // able to point anywhere else (or be a javascript: URL).
+    url: m.siteUrl?.startsWith("https://anilist.co/")
+      ? m.siteUrl
+      : `https://anilist.co/${type}/${m.id}`,
     image:
       (thumb
         ? m.coverImage?.medium || m.coverImage?.large

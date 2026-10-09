@@ -233,7 +233,15 @@ The components under `src/components/`:
   - the empty states fading in.
 - **Keep motion out of plain rows.** The list renders 700+ rows, so only the row that changed gets motion elements; every other row renders plain elements.
 
-**Security.** React escapes text. Item `url`s render as links only when they are `http(s)`, because imported files are untrusted.
+**Security.**
+
+- **Rendering.** React escapes text, and nothing uses `dangerouslySetInnerHTML`. Item `url`s render as links only when they are `http(s)`, because imported files are untrusted. Links from upstream APIs are pinned to their own site (`anilist.ts` keeps `siteUrl` only on `https://anilist.co/`), and posters must be `https`.
+- **Tokens.** The Google refresh token lives only in the encrypted, httpOnly session cookie. The browser gets the 1-hour access token from `/api/auth/session` and sends it only to `www.googleapis.com`. The scope is `drive.file`, so even a leaked token reaches only the files this app created. Nothing is stored server-side: no database, no user records.
+- **Headers** (`next.config.ts`) apply to every route: a CSP, `X-Frame-Options: DENY`, `nosniff`, a referrer policy, `COOP: same-origin`, a permissions policy and HSTS; `X-Powered-By` is off.
+  - The CSP is the "without nonces" kind, because the pages are prerendered. `script-src` has to allow `'unsafe-inline'` for Next's inline scripts, so escaping remains the defense against injected script. `connect-src` limits the pages to this site and the Drive API, `img-src` to the poster CDNs and Google avatars, and `frame-ancestors 'none'` blocks framing.
+  - The service worker gets its own CSP (`/serwist/:path*`). Posters, avatars and Drive calls pass through it, and inside a worker every fetch counts as `connect-src`. With the pages' policy, every poster failed in production.
+  - Dev has no service worker, so check CSP changes with `next build` + `next start` (and `AUTH_TRUST_HOST=true`).
+  - A new external host the app calls or loads images from must be added to these lists, or it will be blocked.
 
 ## Data and tools
 

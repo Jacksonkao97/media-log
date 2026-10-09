@@ -103,6 +103,17 @@ describe("normaliseMedia", () => {
     });
   });
 
+  it("links only to AniList itself, whatever siteUrl says", () => {
+    for (const siteUrl of [
+      "javascript:alert(1)",
+      "https://evil.example/anime/1",
+      "http://anilist.co/anime/1",
+    ])
+      expect(normaliseMedia(media({ siteUrl })).url).toBe(
+        "https://anilist.co/anime/1",
+      );
+  });
+
   it("files movies under 电影, like the migrated 剧场版", () => {
     expect(normaliseMedia(media({ format: "MOVIE" }))).toMatchObject({
       category: "电影",
