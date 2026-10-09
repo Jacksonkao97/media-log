@@ -56,7 +56,13 @@ import {
   type Imported,
 } from "@/lib/transfer";
 import { cn } from "@/lib/utils";
-import { parseView, viewPath, type Section, type View } from "@/lib/view";
+import {
+  parseView,
+  viewPath,
+  viewTitle,
+  type Section,
+  type View,
+} from "@/lib/view";
 import { isSignedIn } from "./Account";
 import { MobileBar, Sidebar, type StorageState } from "./Chrome";
 import { Discover, type PickWork } from "./Discover";
@@ -185,9 +191,12 @@ export function MediaLog({
   // Every view has its own prerendered page (lib/view.ts). Switching views
   // only pushes its URL, so a reload paints the same view and Back returns
   // to the previous one, without the page reloading in between.
+  // The title follows too: pushState alone leaves the old one.
   useEffect(() => {
-    const path = viewPath({ section, region, feed });
+    const view = { section, region, feed };
+    const path = viewPath(view);
     if (path !== location.pathname) history.pushState(null, "", path);
+    document.title = viewTitle(view);
   }, [section, region, feed]);
 
   // Back/Forward: show the view the URL names. A feed URL doesn't name a

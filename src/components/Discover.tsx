@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Toggle } from "@/components/ui/toggle";
 import {
+  FEED_LABEL,
   MANGA_COUNTRIES,
   MOVIE_LISTS,
   feedUrl,
@@ -54,25 +55,25 @@ export const FEEDS: Record<
   { label: string; short: string; icon: LucideIcon; blurb: string }
 > = {
   airing: {
-    label: "新番时间表",
+    label: FEED_LABEL.airing,
     short: "时间表",
     icon: CalendarClock,
     blurb: "这一周每天更新的动画，按你的时区排",
   },
   season: {
-    label: "季度新番",
+    label: FEED_LABEL.season,
     short: "新番",
     icon: Sparkles,
     blurb: "一季开播的动画，按人气排",
   },
   manga: {
-    label: "热门漫画",
+    label: FEED_LABEL.manga,
     short: "漫画",
     icon: BookOpen,
     blurb: "最近最多人在看的漫画",
   },
   movies: {
-    label: "电影",
+    label: FEED_LABEL.movies,
     short: "电影",
     icon: Clapperboard,
     blurb: "正在上映和即将上映的电影",

@@ -6,6 +6,15 @@
 export const FEED_IDS = ["airing", "season", "manga", "movies"] as const;
 export type FeedId = (typeof FEED_IDS)[number];
 
+/** Each feed's name, here rather than in Discover.tsx so the server can use
+ *  it too (page titles, lib/view.ts). */
+export const FEED_LABEL: Record<FeedId, string> = {
+  airing: "新番时间表",
+  season: "季度新番",
+  manga: "热门漫画",
+  movies: "电影",
+};
+
 /* ------------------------------------------------------------ seasons */
 
 export const SEASONS = ["WINTER", "SPRING", "SUMMER", "FALL"] as const;

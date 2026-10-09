@@ -3,7 +3,7 @@
  * right region or feed at once. Switching views inside the app only pushes
  * the URL; it doesn't load a page. */
 
-import { FEED_IDS, type FeedId } from "./discover/feeds";
+import { FEED_IDS, FEED_LABEL, type FeedId } from "./discover/feeds";
 import { REGIONS, type Region } from "./schema";
 
 export type Section = "library" | "discover";
@@ -34,6 +34,11 @@ export function viewPath(v: View): string {
     ? `/discover/${v.feed}`
     : `/${REGION_SLUG[v.region]}`;
 }
+
+/** The page title: the region or feed showing, then the app. Set by the
+ *  prerendered page and, after a switch inside the app, by MediaLog. */
+export const viewTitle = (v: View) =>
+  `${v.section === "discover" ? FEED_LABEL[v.feed] : v.region} · MediaLog`;
 
 /** Every view's path: what gets prerendered and precached. */
 export const VIEW_PATHS: string[] = [

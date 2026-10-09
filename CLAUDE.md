@@ -60,6 +60,7 @@ The app is one client-side component: `src/app/[[...view]]/page.tsx` renders `sr
 
 - Every view has its own path. `/` is 日本; `/cn`, `/kr` and `/west` are the other regions; `/discover/<feed>` is a 发现 feed. `generateStaticParams` prerenders all 8 views and `dynamicParams = false` makes every other path a 404. A reload therefore paints the right region or feed at once. Restoring a view on the client, from `localStorage` or a hash, can't do that: the first paint would be the prerendered default, then it would jump.
 - `MediaLog` starts from `initialView`. When `section`, `region` or `feed` changes, an effect calls `history.pushState` with `viewPath()`. Next integrates native `pushState`, so nothing reloads and the library stays in memory. On `popstate` (Back/Forward) the state is read back with `parseView()`. A feed URL doesn't name a region, so the phone's 片单 switch returns to the region last shown, and vice versa.
+- Each page's title names its view (`viewTitle()`, e.g. 韩国 · MediaLog), from `generateMetadata` when prerendered and from the same effect after a switch. Feed names live in `FEED_LABEL` (`lib/discover/feeds.ts`) so the server can read them; `Discover.tsx` is a client module.
 - The service worker precaches all 8 pages (`VIEW_PATHS`), so each one opens offline. The installed app's `start_url` and the 新增 shortcut stay on `/`.
 
 The components under `src/components/`:
