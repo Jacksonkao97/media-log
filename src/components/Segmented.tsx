@@ -1,7 +1,9 @@
 "use client";
 
 /* A segmented control: shadcn's ToggleGroup (Radix: radio semantics, arrow-key
- * navigation) with a knob that slides to the chosen option (motion layoutId). */
+ * navigation) with a knob that slides to the chosen option (motion layoutId).
+ * Options are equal grid columns as wide as the widest one, so a longer label
+ * (e.g. 本季) widens them all instead of overflowing its own padding. */
 
 import { useId, type ReactNode } from "react";
 import { motion } from "motion/react";
@@ -32,13 +34,16 @@ export function Segmented<T extends string>({
       // Radix allows deselecting the active item; a segmented control always has one.
       onValueChange={(v) => v && onChange(v as T)}
       spacing={1}
-      className={cn("bg-muted w-full rounded-lg p-1", className)}
+      className={cn(
+        "bg-muted grid w-full auto-cols-fr grid-flow-col rounded-lg p-1",
+        className,
+      )}
     >
       {options.map((o) => (
         <ToggleGroupItem
           key={o}
           value={o}
-          className="text-muted-foreground hover:text-foreground data-[state=on]:text-foreground relative h-8 flex-1 px-3 text-[13px] font-normal hover:bg-transparent data-[state=on]:bg-transparent data-[state=on]:font-medium max-md:h-10"
+          className="text-muted-foreground hover:text-foreground data-[state=on]:text-foreground relative h-8 min-w-fit px-3 text-[13px] font-normal hover:bg-transparent data-[state=on]:bg-transparent data-[state=on]:font-medium max-md:h-10"
         >
           {o === value && (
             <motion.span
