@@ -2,8 +2,9 @@
 
 个人向的动画 / 漫画 / 电影追踪表。
 
-> **这是 v2 分支**：用 Next.js 重写，目标是做成网站（手机也能用）、自动同步到 Google Drive、看新番资讯、有更新时推送提醒。
-> 这是 v2（Next.js）。旧版 v1（纯 HTML，直接改 `data/` 里的 JSON）在 v2 合并进 `main` 之前的提交里。
+**在线使用：<https://media-log-seven.vercel.app>**（数据存在你自己的浏览器里，登录 Google 后同步到你自己的 Google Drive）
+
+> 这是 v2：用 Next.js 重写的网站，手机电脑都能用，可以装成 App、离线使用。旧版 v1（纯 HTML，直接改 `data/` 里的 JSON）在 v2 合并进 `main` 之前的提交里。
 
 ## 本地运行
 
@@ -62,10 +63,10 @@ node scripts/generate-icons.mjs   # 重新生成应用图标
 2. ~~Google 登录 + 自动同步到 Drive（四个区域文件 + 每天一份带日期的快照）~~ ✅
 3. ~~做成可安装的 PWA，手机上像 App 一样用，离线也能打开~~ ✅
 4. ~~新番 / 新电影资讯（AniList、TMDB）~~ ✅
-5. ~~追更提醒（新一集 / 网站更新时通知）~~ ✅
-6. 公开上线
+5. ~~追更提醒（新一集 / 网站更新时通知）~~ ✅（暂时关闭，见「更新提醒」）
+6. 公开上线 —— 网站已上线 ✅；Google 登录还在「测试」状态，只有加进测试用户的账号能登录同步（见「Google Drive 同步设置」）
 
-> ⚠️ `data/` 里是真实的个人数据。git 已经不再跟踪它（`.gitignore`），文件只留在本机。但旧的提交里还有它：仓库一直是私有的就没关系，**要把仓库设为公开，得先把它从 git 历史里清掉**。部署网站本身不需要公开仓库。
+还没做的和以后想加的，见 [TODO.md](TODO.md)。
 
 ## 数据格式
 
@@ -287,14 +288,17 @@ curl -H "Authorization: Bearer 你的CRON_SECRET" http://localhost:3000/api/trac
 
 **注意：**
 
-- 应用在 Google 那边处于「测试」状态时，**登录每 7 天会失效一次**（Google 的规定），应用会提示「重新登录」，点一下就好。在 Google Auth Platform 里把应用**发布（Publish app）**就没有这个限制；只用 `drive.file` 这种非敏感权限，个人使用通常不需要 Google 审核。
+- 应用在 Google 那边处于「测试」状态时，**只有 Audience → Test users 里的账号能登录**（最多 100 个），其他人会被 Google 拒绝；**登录每 7 天还会失效一次**（Google 的规定），应用会提示「重新登录」，点一下就好。在 Google Auth Platform 里把应用**发布（Publish app）**就没有这些限制；只用 `drive.file` 这种非敏感权限，个人使用通常不需要 Google 审核。
+- **给别人演示**（应用还没发布时）：先在 **Audience → Test users** 里加上对方的 Google 账号，否则对方点「登录 Google 同步」会被拒绝。不登录也能用，只是数据只存在那个浏览器里、不会同步。
 - 登录时 Google 会列出权限，**要勾选 Google Drive 那一项**，否则无法同步（应用会提示重新登录）。
 - 用 `npm run build && npm start` 在本机跑生产版本、或者自己架服务器时，还要加 `AUTH_TRUST_HOST=true`。部署到 Vercel 不需要。
 - 改了这几个环境变量后要重新 `npm run build`（`npm run dev` 不用）。
 
 ## 关于迁移
 
-`tools/migrate.py` 把原来三个 Word 文档解析成了上面的 JSON，共 **789** 条（292 动画 + 415 日漫 + 82 中韩漫，数量与原文一致）。三个 `.docx` 原件没有被改动，脚本可以重复运行。
+`tools/migrate.py` 把原来三个 Word 文档解析成了上面的 JSON，共 **789** 条（292 动画 + 415 日漫 + 82 中韩漫，数量与原文一致）。三个 `.docx` 原件没有被改动，也不在仓库里。
+
+**这是一次性的脚本，不要再运行**：它会给每一条重新生成 id 并覆盖 `data/`，之后的修改就都对不上了。
 
 原始行的格式是 `名字(进度) 看完了 (备注)`，脚本按下面的规则拆解 —— 都是启发式的，**建议抽查**：
 
@@ -313,3 +317,9 @@ curl -H "Authorization: Bearer 你的CRON_SECRET" http://localhost:3000/api/trac
 不同意的话，在应用里打开编辑弹窗改一下「区域」就会自动搬家。
 
 `createdAt` / `updatedAt` 用的是各自源文档的最后修改时间（动画 2025-06-28、中韩漫 2025-11-16、日漫 2026-08-25）—— 真实的录入时间无从得知，用文档时间至少是真实信息，而且按创建时间排序时新加的条目会排在最前面。
+
+## 许可
+
+代码以 [MIT 许可](LICENSE) 开源。
+
+`public/credits/tmdb.svg` 是 TMDB 的官方 logo，归 TMDB 所有，按 [TMDB 的使用规定](https://www.themoviedb.org/about/logos-attribution) 用来注明数据来源，不在 MIT 许可范围内。

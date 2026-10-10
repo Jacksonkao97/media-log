@@ -45,5 +45,5 @@ next-env.d.ts
 /.data/
 
 # The owner's real data: kept on this machine as the import source, never
-# committed (it is still in older history and on main; see CLAUDE.md).
+# committed (it was purged from history on 2026-10-10; see CLAUDE.md).
 /data/
