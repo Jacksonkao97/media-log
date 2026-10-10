@@ -97,8 +97,8 @@ export default function Privacy() {
                 <p>
                   登录用到必需的 Cookie（会话、防止跨站请求伪造）。另外，网站用
                   Google Analytics 统计访问量，它会设置自己的 Cookie（_ga
-                  开头），记录你看了哪些页面、点了哪些按钮（只记按钮名称，例如「新增」）、浏览器和设备类型、大致地区（由 IP
-                  地址推断）等，帮助我们了解网站的使用情况。
+                  开头），记录你看了哪些页面、点了哪些按钮（只记按钮名称，例如「新增」）、浏览器和设备类型、大致地区（由
+                  IP 地址推断）等，帮助我们了解网站的使用情况。
                 </p>
                 <List>
                   <li>
@@ -262,14 +262,15 @@ export default function Privacy() {
                   Sign-in uses the cookies it needs (the session, and protection
                   against cross-site request forgery). The site also uses Google
                   Analytics to count visits. It sets its own cookies (named
-                  _ga…) and records which pages you view, which buttons you click (only the button's name, such as 新增), your browser and
+                  _ga…) and records which pages you view, which buttons you
+                  click (only the button's name, such as 新增), your browser and
                   device type, and your approximate location (inferred from your
                   IP address), so we can see how the site is used.
                 </p>
                 <List>
                   <li>
-                    Your list (titles included), your Google account details
-                    and your Drive data are never sent to Google Analytics.
+                    Your list (titles included), your Google account details and
+                    your Drive data are never sent to Google Analytics.
                   </li>
                   <li>There are no ads, and this data is not used for ads.</li>
                   <li>
