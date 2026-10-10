@@ -263,9 +263,10 @@ export default function Privacy() {
                   against cross-site request forgery). The site also uses Google
                   Analytics to count visits. It sets its own cookies (named
                   _ga…) and records which pages you view, which buttons you
-                  click (only the button's name, such as 新增), your browser and
-                  device type, and your approximate location (inferred from your
-                  IP address), so we can see how the site is used.
+                  click (only the button&apos;s name, such as 新增), your
+                  browser and device type, and your approximate location
+                  (inferred from your IP address), so we can see how the site is
+                  used.
                 </p>
                 <List>
                   <li>

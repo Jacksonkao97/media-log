@@ -1,3 +1,5 @@
+import { LAUNCH_PARAMS } from "./launch";
+
 /* Google Analytics (GA4). On only when NEXT_PUBLIC_GA_ID is set, so local and
  * preview builds stay out of the stats: set it for Vercel's Production
  * environment only. NEXT_PUBLIC_ values are inlined at build, and the pages are
@@ -9,6 +11,22 @@ export function gaId(): string | null {
   const id = process.env.NEXT_PUBLIC_GA_ID?.trim();
   // It is interpolated into an inline script, so accept only the real shape.
   return id && /^G-[A-Z0-9]+$/.test(id) ? id : null;
+}
+
+/** Google's gtag snippet, as the inline script that goes in every page's HTML
+ * (layout.tsx), next to gtag.js. It is in the prerendered HTML, not added after
+ * hydration, so it starts early and GA's own tag check can find it. A launch
+ * URL (lib/launch.ts) skips `config`, the first page_view, because it carries
+ * the user's text; Analytics sends it once MediaLog has stripped the query. */
+export function gaSnippet(id: string): string {
+  return [
+    "window.dataLayer=window.dataLayer||[];",
+    "function gtag(){dataLayer.push(arguments);}",
+    "gtag('js',new Date());",
+    "(function(){var q=new URLSearchParams(location.search);",
+    `if(!${JSON.stringify(LAUNCH_PARAMS)}.some(function(p){return q.has(p)}))`,
+    `gtag('config',${JSON.stringify(id)});})();`,
+  ].join("");
 }
 
 /** Hosts gtag.js loads from and reports to (Google's documented CSP list). */

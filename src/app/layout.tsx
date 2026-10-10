@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { Analytics } from "@/components/Analytics";
 import { PwaProvider } from "@/components/Pwa";
-import { gaId } from "@/lib/analytics";
+import { gaId, gaSnippet } from "@/lib/analytics";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -33,6 +33,20 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   const ga = gaId();
   return (
     <html lang="zh-Hans">
+      {/* Google's tag, as plain tags in the prerendered HTML (lib/analytics.ts).
+          The snippet is a fixed template around the validated ID. */}
+      {ga && (
+        <head>
+          <script
+            id="ga-snippet"
+            dangerouslySetInnerHTML={{ __html: gaSnippet(ga) }}
+          />
+          <script
+            async
+            src={`https://www.googletagmanager.com/gtag/js?id=${ga}`}
+          />
+        </head>
+      )}
       <body>
         <PwaProvider>{children}</PwaProvider>
         {/* useSearchParams needs a Suspense boundary on prerendered pages. */}
