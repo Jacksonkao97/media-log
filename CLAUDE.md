@@ -151,7 +151,7 @@ The components under `src/components/`:
   - iOS has no API, so `IosInstallDialog` explains Share → 添加到主屏幕.
   - Nothing is offered when the app already runs standalone.
   - An app installed on iOS has storage separate from Safari, so it starts empty until you sign in or import.
-- **Launch URLs.** `launchDraft()` (`src/lib/launch.ts`) turns `new`/`title`/`text`/`url` into a prefill (`DialogTarget.prefill`). It keeps only `http(s)` links. `MediaLog` reads it once after the library loads, then strips the query with `history.replaceState`.
+- **Launch URLs.** `launchDraft()` (`src/lib/launch.ts`) turns `new`/`title`/`text`/`url` into a prefill (`DialogTarget.prefill`). It keeps only `http(s)` links. `MediaLog` reads it once after the library loads, then, if it was a launch (`isLaunch`), strips the query with `history.replaceState`.
 - **Offline start** (`useDriveSync`).
   - The last signed-in account is kept in `localStorage` (`medialog:account`): name, email and image, never tokens. When the session can't be fetched, the app shows that account as offline rather than signed out. It reconnects on `online`, on the poll, or on 立即同步.
   - Sign-out clears the cached account.
@@ -252,7 +252,7 @@ The components under `src/components/`:
   - A new external host the app calls or loads images from must be added to these lists, or it will be blocked.
 - **Google Analytics.** `gaId()` (`lib/analytics.ts`) reads `NEXT_PUBLIC_GA_ID`, set on Vercel for Production only, so local and preview builds aren't counted. It is inlined at build, so changing it needs a redeploy.
   - Only while it is set do the pages' CSP (script, img, connect) and the worker's (connect) allow `GA_HOSTS`, and does `/privacy` describe analytics. The worker passes GA requests straight to the network (`GOOGLE` in `sw.ts`); its default cross-origin rule would cache gtag.js as an opaque response.
-  - `Analytics` waits until the URL has no query, because launch URLs (`?title=…&url=…` from a share) carry the user's text and gtag's first `page_view` reports the full address. View switches are counted by GA4's enhanced measurement (history changes), not by the app.
+  - `Analytics` waits while the URL is a launch (`isLaunch()` in `lib/launch.ts`: `new`, `title`, `text`, `url`), because a share carries the user's text and gtag's first `page_view` reports the full address. `MediaLog` strips only a launch's query, so campaign tags (`?utm_source=…`) stay for GA's traffic sources; the referrer needs nothing. View switches are counted by GA4's enhanced measurement (history changes), not by the app.
   - **Clicks.** One capture-phase listener in `Analytics` sends `button_click` with `button_name` for every button, link, menu item, tab and toggle. `clickName()` names it by the nearest `data-track`, else the control's `aria-label` or text, minus a trailing count (the region nav's). `Segmented` sets `data-track` from its `name` prop (default: the option), so render extras such as dates stay out. To see `button_name` in GA reports, it is registered as an event-scoped custom dimension there.
   - Nothing from the library or the Google account is sent to GA. Keep it that way; the privacy policy says so. **A control whose label holds user data (an item's name) must set a fixed `data-track`**, as `ItemList` and `Discover` do; otherwise its label is sent.
 

@@ -5,6 +5,15 @@
 
 import type { ItemFields } from "./schema";
 
+/** The parameters a launch URL may carry. Other ones, such as utm_source on a
+ * link to the site, are left in the address for analytics to see. */
+const LAUNCH_PARAMS = ["new", "title", "text", "url"];
+
+/** Whether the URL is a launch, whose query MediaLog reads and then strips.
+ * It carries the user's own text, so analytics waits until it is gone. */
+export const isLaunch = (params: URLSearchParams) =>
+  LAUNCH_PARAMS.some((p) => params.has(p));
+
 export function launchDraft(
   params: URLSearchParams,
 ): Partial<ItemFields> | null {

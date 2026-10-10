@@ -6,10 +6,12 @@
  *     sent when gtag loads; the view switches after it are pushState, which
  *     GA4's enhanced measurement ("page changes based on browser history
  *     events", on by default) counts as page views.
- *   - The tag waits until the address has no query. Launch URLs carry the
- *     user's own text: a page shared to the app arrives as /?title=…&url=…,
- *     which MediaLog turns into a draft and then strips, and gtag's first
- *     page_view reports the full address.
+ *   - Where visitors come from is GA4's own too: the referrer, and campaign
+ *     tags (?utm_source=…), which MediaLog leaves in the address.
+ *   - The tag waits while the address is a launch URL (isLaunch). Those carry
+ *     the user's own text: a page shared to the app arrives as
+ *     /?title=…&url=…, which MediaLog turns into a draft and then strips, and
+ *     gtag's first page_view reports the full address.
  *   - Clicks: one listener sends a button_click event, with button_name,
  *     for every button, link, menu item, tab or toggle (clickName). The name
  *     is the control's static label. Controls whose label holds the user's
@@ -20,9 +22,10 @@ import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { GoogleAnalytics, sendGAEvent } from "@next/third-parties/google";
 import { clickName } from "@/lib/analytics";
+import { isLaunch } from "@/lib/launch";
 
 export function Analytics({ id }: { id: string }) {
-  const ready = useSearchParams().size === 0;
+  const ready = !isLaunch(useSearchParams());
   useEffect(() => {
     if (!ready) return;
     // Capture phase: Radix menus stop propagation of some clicks.
