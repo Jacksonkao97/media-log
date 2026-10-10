@@ -30,6 +30,7 @@ What's left and what could come next. Last updated 2026-10-10. The site is live 
 - [ ] **Google OAuth app: stays in Testing for now** (decided 2026-10-10). See the reminder at the top. When you want anyone to be able to sign in:
   - choose **Publish app** in Google Auth Platform, and check that `https://media-log-seven.vercel.app/api/auth/callback/google` is an authorised redirect URI;
   - brand verification (your app name and logo on the consent screen) needs a verified domain, the home page and the privacy policy. `/privacy` and `/terms` are ready.
+- [ ] **Turn on Google Analytics.** Set `NEXT_PUBLIC_GA_ID` = `G-GM4DF6TNYL` in Vercel (Production only) and redeploy (README「访问统计」). Then check Realtime in GA while opening the site.
 - [ ] **Turn on 电影.** `/discover/movies` is a 404 on the live site, because `TMDB_API_KEY` isn't set on Vercel; it's empty in `.env.local` too. Get a key (README「电影：配置 TMDB」), set it in Vercel, and redeploy.
 - [ ] **Bring back 更新提醒** (`REMINDERS_ENABLED` in `src/lib/track/enabled.ts`). Right now anyone could subscribe any device, so it needs:
   - subscriptions tied to Google sign-in: `/api/track/subscribe` checks the session, and caps devices per account;

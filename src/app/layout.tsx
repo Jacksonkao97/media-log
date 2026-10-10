@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
+import { Analytics } from "@/components/Analytics";
 import { PwaProvider } from "@/components/Pwa";
+import { gaId } from "@/lib/analytics";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -27,10 +30,17 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
+  const ga = gaId();
   return (
     <html lang="zh-Hans">
       <body>
         <PwaProvider>{children}</PwaProvider>
+        {/* useSearchParams needs a Suspense boundary on prerendered pages. */}
+        {ga && (
+          <Suspense>
+            <Analytics id={ga} />
+          </Suspense>
+        )}
       </body>
     </html>
   );

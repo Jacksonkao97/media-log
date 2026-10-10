@@ -294,6 +294,20 @@ curl -H "Authorization: Bearer 你的CRON_SECRET" http://localhost:3000/api/trac
 - 用 `npm run build && npm start` 在本机跑生产版本、或者自己架服务器时，还要加 `AUTH_TRUST_HOST=true`。部署到 Vercel 不需要。
 - 改了这几个环境变量后要重新 `npm run build`（`npm run dev` 不用）。
 
+## 访问统计（Google Analytics）
+
+可选。设置了 `NEXT_PUBLIC_GA_ID` 才会加载 Google Analytics（GA4），没设置就完全没有统计脚本，所以本机和 Vercel 的预览部署都不会混进统计。
+
+1. 在 [Google Analytics](https://analytics.google.com) 建一个媒体资源和网站数据流，复制 **衡量 ID**（`G-` 开头）
+2. Vercel 项目 → **Settings → Environment Variables**，加 `NEXT_PUBLIC_GA_ID` = 衡量 ID，环境只勾 **Production**
+3. 重新部署（这个值在构建时写进页面，改了要重新部署）
+
+衡量 ID 不是密钥，本来就会出现在每个页面的源码里；放在环境变量里只是为了让本机和预览部署不统计。打开后，内容安全策略（CSP）会放行 Google Analytics 的域名，隐私政策也会自动加上统计的说明。统计的内容：
+
+- **浏览量和访问次数**：GA4 自己统计。切换片单区域和「发现」页面也算一次浏览（GA4 默认的「增强型衡量」会记录浏览器历史变化，保持开启即可）。
+- **从哪里来**：也是 GA4 自己统计。来源网站（referrer）和大致地区（由 IP 推断）都会记录；链接上带 `?utm_source=…` 这类推广参数的，也会按参数归到对应来源。在 **报告 → 流量获取** 看来源，**报告 → 用户属性 → 用户特征** 看国家 / 城市。
+- **按钮点击**：每次点按钮、链接、菜单项或切换选项，都会发一个 `button_click` 事件，参数 `button_name` 是按钮的名字（例如「新增」「进度 +1」「韩国」）。作品名称不会发出去：列表里每一行的按钮都用固定的名字（「编辑作品」等）。要在报告里按按钮名称分组，先在 GA 的 **管理 → 自定义定义 → 创建自定义维度** 里加一个：范围选「事件」，事件参数填 `button_name`。之后的数据才会出现在这个维度里（**探索** 里建一个表格，维度选 button_name，指标选「事件数」）。
+
 ## 关于迁移
 
 `tools/migrate.py` 把原来三个 Word 文档解析成了上面的 JSON，共 **789** 条（292 动画 + 415 日漫 + 82 中韩漫，数量与原文一致）。三个 `.docx` 原件没有被改动，也不在仓库里。

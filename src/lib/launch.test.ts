@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { launchDraft } from "./launch";
+import { isLaunch, launchDraft } from "./launch";
 
 const q = (s: string) => launchDraft(new URLSearchParams(s));
 
@@ -34,5 +34,20 @@ describe("launchDraft", () => {
       name: "x",
       url: "",
     });
+  });
+});
+
+describe("isLaunch", () => {
+  const is = (s: string) => isLaunch(new URLSearchParams(s));
+
+  it("is true for the shortcut and for shares", () => {
+    expect(is("new=1")).toBe(true);
+    expect(is("title=x&url=https://example.com")).toBe(true);
+    expect(is("text=x")).toBe(true);
+  });
+
+  it("is false for no query and for campaign tags", () => {
+    expect(is("")).toBe(false);
+    expect(is("utm_source=twitter&utm_medium=social")).toBe(false);
   });
 });

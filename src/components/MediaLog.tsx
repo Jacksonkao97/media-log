@@ -47,7 +47,7 @@ import {
 } from "@/lib/schema";
 import { keepStorage, loadLibrary, saveRegion } from "@/lib/storage";
 import { REMINDERS_ENABLED } from "@/lib/track/enabled";
-import { launchDraft } from "@/lib/launch";
+import { isLaunch, launchDraft } from "@/lib/launch";
 import { openTabChannel } from "@/lib/tabs";
 import {
   downloadJson,
@@ -158,8 +158,10 @@ export function MediaLog({
     let cancelled = false;
     /** Launched from the 新增 shortcut or a share: open a pre-filled editor. */
     const handleLaunch = () => {
-      const draft = launchDraft(new URLSearchParams(location.search));
-      if (location.search) history.replaceState(null, "", location.pathname);
+      const params = new URLSearchParams(location.search);
+      const draft = launchDraft(params);
+      // Only a launch's query is stripped: campaign tags (utm_*) stay for GA.
+      if (isLaunch(params)) history.replaceState(null, "", location.pathname);
       if (!draft) return;
       setDialog({ region: REGIONS[0], item: null, prefill: draft });
       setDialogOpen(true);

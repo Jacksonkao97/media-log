@@ -1,18 +1,23 @@
 import type { Metadata } from "next";
 import { Ext, LegalPage, List, Mail, Section } from "@/components/LegalPage";
 import { tmdbKey } from "@/lib/discover/tmdb";
+import { gaId } from "@/lib/analytics";
 
 export const metadata: Metadata = { title: "隐私政策 · MediaLog" };
 
 const GOOGLE_POLICY =
   "https://developers.google.com/terms/api-services-user-data-policy";
 const PERMISSIONS = "https://myaccount.google.com/permissions";
+const GA_PRIVACY = "https://policies.google.com/technologies/partner-sites";
+const GA_OPTOUT = "https://tools.google.com/dlpage/gaoptout";
 
 export default function Privacy() {
   // TMDB is only contacted while 电影 is on (shownFeeds).
   const sources = tmdbKey()
     ? ["AniList、TMDB", "AniList and TMDB"]
     : ["AniList", "AniList"];
+  // Google Analytics is only loaded while NEXT_PUBLIC_GA_ID is set.
+  const analytics = gaId() !== null;
   return (
     <LegalPage
       title="隐私政策"
@@ -87,16 +92,43 @@ export default function Privacy() {
           </Section>
 
           <Section title="Cookie 与统计">
-            <p>
-              只使用登录所必需的
-              Cookie（会话、防止跨站请求伪造）。没有广告或统计用的
-              Cookie，也没有任何第三方统计或广告脚本。
-            </p>
+            {analytics ? (
+              <>
+                <p>
+                  登录用到必需的 Cookie（会话、防止跨站请求伪造）。另外，网站用
+                  Google Analytics 统计访问量，它会设置自己的 Cookie（_ga
+                  开头），记录你看了哪些页面、点了哪些按钮（只记按钮名称，例如「新增」）、浏览器和设备类型、大致地区（由
+                  IP 地址推断）等，帮助我们了解网站的使用情况。
+                </p>
+                <List>
+                  <li>
+                    你的片单内容（包括作品名称）、Google 账号信息和 Drive
+                    里的数据都不会发给 Google Analytics。
+                  </li>
+                  <li>没有广告，也不用这些数据做广告。</li>
+                  <li>
+                    不想被统计，可以用浏览器的跟踪保护或广告拦截，或者安装{" "}
+                    <Ext href={GA_OPTOUT}>Google Analytics 停用插件</Ext>
+                    。网站照常可用。Google 怎么处理这些数据，见{" "}
+                    <Ext href={GA_PRIVACY}>Google 的说明</Ext>。
+                  </li>
+                </List>
+              </>
+            ) : (
+              <p>
+                只使用登录所必需的
+                Cookie（会话、防止跨站请求伪造）。没有广告或统计用的
+                Cookie，也没有任何第三方统计或广告脚本。
+              </p>
+            )}
           </Section>
 
           <Section title="第三方服务">
             <List>
-              <li>Google：登录，以及同步到 Google Drive。</li>
+              <li>
+                Google：登录，以及同步到 Google Drive
+                {analytics && "；Google Analytics 统计访问量（见上）"}。
+              </li>
               <li>
                 Vercel：网站托管。和所有网站一样，托管服务商会处理请求的技术信息（例如
                 IP 地址、访问的网址和时间），用于运行和保护网站，见{" "}
@@ -224,16 +256,47 @@ export default function Privacy() {
           </Section>
 
           <Section title="Cookies and analytics">
-            <p>
-              Only the cookies sign-in needs (the session, and protection
-              against cross-site request forgery). No advertising or analytics
-              cookies, and no third-party analytics or ad scripts.
-            </p>
+            {analytics ? (
+              <>
+                <p>
+                  Sign-in uses the cookies it needs (the session, and protection
+                  against cross-site request forgery). The site also uses Google
+                  Analytics to count visits. It sets its own cookies (named
+                  _ga…) and records which pages you view, which buttons you
+                  click (only the button's name, such as 新增), your browser and
+                  device type, and your approximate location (inferred from your
+                  IP address), so we can see how the site is used.
+                </p>
+                <List>
+                  <li>
+                    Your list (titles included), your Google account details and
+                    your Drive data are never sent to Google Analytics.
+                  </li>
+                  <li>There are no ads, and this data is not used for ads.</li>
+                  <li>
+                    To opt out, use your browser&apos;s tracking protection or a
+                    content blocker, or install the{" "}
+                    <Ext href={GA_OPTOUT}>Google Analytics opt-out add-on</Ext>;
+                    the site works the same. See{" "}
+                    <Ext href={GA_PRIVACY}>how Google uses this data</Ext>.
+                  </li>
+                </List>
+              </>
+            ) : (
+              <p>
+                Only the cookies sign-in needs (the session, and protection
+                against cross-site request forgery). No advertising or analytics
+                cookies, and no third-party analytics or ad scripts.
+              </p>
+            )}
           </Section>
 
           <Section title="Third-party services">
             <List>
-              <li>Google: sign-in, and syncing to Google Drive.</li>
+              <li>
+                Google: sign-in, and syncing to Google Drive
+                {analytics && "; Google Analytics, to count visits (above)"}.
+              </li>
               <li>
                 Vercel: hosting. Like any web host, it processes technical
                 request data (such as IP address, URL and time) to run and
