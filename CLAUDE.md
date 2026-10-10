@@ -17,7 +17,7 @@ UI text and the README are Simplified Chinese; code comments are English.
 3. Make it an installable PWA so it works on phones, including offline (done).
 4. "Latest anime/movies" using AniList (anime/manga, including airing schedules) and TMDB (movies) (done).
 5. Episode/site trackers with notifications, which need a server-side scheduled job (done: Web Push for AniList episodes and manhuagui chapters; any scheduler can call the check). The site is hosted on Vercel, whose free plan only runs cron once a day. 更新提醒 is switched off for now (see below).
-6. Go public, keeping each user's data in their own Google Drive (in progress). The site is live. The Google OAuth app deliberately stays in Testing for now, so only accounts listed as test users can sign in; anyone the owner demos to must be added there first. `TODO.md` tracks what's left and future ideas; keep it current.
+6. Go public, keeping each user's data in their own Google Drive (in progress). The site is live and the repo is public (2026-10-10). The Google OAuth app deliberately stays in Testing for now, so only accounts listed as test users can sign in; anyone the owner demos to must be added there first. `TODO.md` tracks what's left and future ideas; keep it current.
 
 ## Commands
 
@@ -253,6 +253,6 @@ The components under `src/components/`:
 ## Data and tools
 
 - `data/*.json` is the owner's real data. It serves as v1's storage and as the import source for v2.
-  - It is untracked and gitignored, so it stays only on the owner's machine. Never commit it again, because the repo is meant to be public.
+  - It is untracked and gitignored, so it stays only on the owner's machine. Never commit it again: the repo is public.
   - On 2026-10-10 it was purged from the whole history (`git filter-branch`, force-pushed; every older commit SHA changed). A clone made before then still has the old history with `data/` in it. Never push from one; re-clone instead.
 - `tools/migrate.py` was a one-time `.docx` → JSON importer, and the `.docx` files are not committed. **Do not re-run it.** It regenerates every UUID and overwrites `data/`.

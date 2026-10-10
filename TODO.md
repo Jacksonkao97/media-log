@@ -1,6 +1,6 @@
 # TODO
 
-What's left and what could come next. Last updated 2026-10-10. The site is live at https://media-log-seven.vercel.app.
+What's left and what could come next. Last updated 2026-10-10. The site is live at https://media-log-seven.vercel.app, and the repo is public.
 
 > **Reminder: Google sign-in is in Testing.** Before you demo MediaLog to anyone, add their Google account in [Google Auth Platform](https://console.cloud.google.com/auth/audience) → **Audience → Test users** (100 accounts at most). Otherwise Google refuses their 登录 Google 同步. Without signing in the app still works, but the data stays in that one browser and nothing syncs. This lasts until you choose to publish the app (§3).
 
@@ -13,15 +13,15 @@ What's left and what could come next. Last updated 2026-10-10. The site is live 
 - [x] **Secrets check.** Searching every commit found no Google client secret, API key, token, VAPID key or `CRON_SECRET`, and `.env.local` was never committed.
 - [x] **`npm audit` (production) is clean.** Serwist was updated to 9.5.13.
 - [x] **README and CLAUDE.md refreshed.**
-- [ ] **Make the repo public** in GitHub → Settings → General → Danger Zone.
-- [ ] **Fill in the repo's About box:** description, website `https://media-log-seven.vercel.app`, and topics (`nextjs`, `pwa`, `anime`, `manga`, `tracker`, `google-drive`).
+- [x] **Repo made public** (2026-10-10).
+- [ ] **Finish the repo's About box.** The website is set; the description and topics are still empty (e.g. `nextjs`, `pwa`, `anime`, `manga`, `tracker`, `google-drive`).
 - [ ] **Turn on secret scanning and push protection** (Settings → Code security; free for public repos).
-- [ ] **Push the website commit** in `Jacksonkao97.github.io` once this repo is public. Until then, its "View Source Code" link would 404.
+- [x] **Website commit pushed;** the portfolio lists MediaLog (2026-10-10).
 - [ ] **Remaining dev-only advisory.** `braces` (under ESLint's Next config and the shadcn CLI) is flagged for every version, so there's no fixed release to move to yet. It only runs on your machine; update once a fix exists.
 
 ## 2. Personal website (`Jacksonkao97.github.io`)
 
-- [x] **MediaLog added to `projects.js`**, first, so it's the Featured Work on the home page. It's committed locally, not pushed (see §1).
+- [x] **MediaLog added to `projects.js`**, first, so it's the Featured Work on https://jacksonkao97.github.io. It's live.
   - The thumbnail is a Microlink screenshot of the new `previewLink` (`/discover/season`). A screenshot of `/` would show an empty library, because each visitor's data lives in their own browser. "View Site" still opens `/`.
 - [ ] **Add Open Graph / Twitter metadata to MediaLog.** `layout.tsx` only sets a title and description, so a shared link gets no preview card. Add `metadataBase`, `openGraph` and an OG image.
 
