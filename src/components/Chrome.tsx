@@ -289,6 +289,7 @@ export function MobileBar({
           options={SECTIONS}
           onChange={onSection}
           render={(s) => SECTION_LABEL[s]}
+          name={(s) => SECTION_LABEL[s]}
           className="w-36"
         />
         <div className="flex-1" />

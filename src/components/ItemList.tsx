@@ -97,6 +97,7 @@ function Row({
         type="button"
         onClick={() => onEdit(it)}
         aria-label={`编辑「${it.name}」`}
+        data-track="编辑作品"
         className="focus-visible:ring-ring/50 absolute inset-0 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
       />
 
@@ -119,6 +120,7 @@ function Row({
                 target="_blank"
                 rel="noreferrer noopener"
                 aria-label={`打开「${it.name}」的链接`}
+                data-track="打开作品链接"
                 title={href}
               >
                 <ExternalLink aria-hidden className="size-3.5" />
@@ -148,6 +150,7 @@ function Row({
           size="sm"
           onClick={() => onBump(it)}
           aria-label={`「${it.name}」进度 +1`}
+          data-track="进度 +1"
           title="进度 +1"
           className={cn(
             "text-muted-foreground hover:border-primary hover:text-primary relative z-10 min-w-10 px-2 text-xs font-semibold tabular-nums active:scale-95 max-md:h-10 max-md:min-w-11",

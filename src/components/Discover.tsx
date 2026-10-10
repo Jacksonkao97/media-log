@@ -369,6 +369,7 @@ function PickButton({
           ? `打开片单里的「${owned.item.name}」`
           : `把「${work.title}」加入片单`
       }
+      data-track={owned ? "打开片单里的作品" : "从发现加入片单"}
       className="focus-visible:ring-ring/50 absolute inset-0 cursor-pointer rounded-[inherit] outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
     />
   );
@@ -489,6 +490,7 @@ function Title({ work, className }: { work: Work; className?: string }) {
             target="_blank"
             rel="noreferrer noopener"
             aria-label={`在 ${site} 查看「${work.title}」`}
+            data-track={`在 ${site} 查看`}
             title={`在 ${site} 查看`}
           >
             <ExternalLink aria-hidden className="size-3.5" />

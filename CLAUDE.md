@@ -253,7 +253,8 @@ The components under `src/components/`:
 - **Google Analytics.** `gaId()` (`lib/analytics.ts`) reads `NEXT_PUBLIC_GA_ID`, set on Vercel for Production only, so local and preview builds aren't counted. It is inlined at build, so changing it needs a redeploy.
   - Only while it is set do the pages' CSP (script, img, connect) and the worker's (connect) allow `GA_HOSTS`, and does `/privacy` describe analytics. The worker passes GA requests straight to the network (`GOOGLE` in `sw.ts`); its default cross-origin rule would cache gtag.js as an opaque response.
   - `Analytics` waits until the URL has no query, because launch URLs (`?title=…&url=…` from a share) carry the user's text and gtag's first `page_view` reports the full address. View switches are counted by GA4's enhanced measurement (history changes), not by the app.
-  - Nothing from the library or the Google account is sent to GA. Keep it that way; the privacy policy says so.
+  - **Clicks.** One capture-phase listener in `Analytics` sends `button_click` with `button_name` for every button, link, menu item, tab and toggle. `clickName()` names it by the nearest `data-track`, else the control's `aria-label` or text, minus a trailing count (the region nav's). `Segmented` sets `data-track` from its `name` prop (default: the option), so render extras such as dates stay out. To see `button_name` in GA reports, it is registered as an event-scoped custom dimension there.
+  - Nothing from the library or the Google account is sent to GA. Keep it that way; the privacy policy says so. **A control whose label holds user data (an item's name) must set a fixed `data-track`**, as `ItemList` and `Discover` do; otherwise its label is sent.
 
 ## Data and tools
 

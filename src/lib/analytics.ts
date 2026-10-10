@@ -17,3 +17,28 @@ export const GA_HOSTS = [
   "https://*.google-analytics.com",
   "https://*.analytics.google.com",
 ];
+
+/** What counts as a button for the button_click event. */
+const CONTROL =
+  "button, a[href], [role=button], [role=menuitem], [role=menuitemradio], " +
+  "[role=menuitemcheckbox], [role=radio], [role=tab], [role=switch], [role=option]";
+
+/** The name a click on `target` is reported under, or null when it isn't on a
+ * control. A data-track attribute (on the control or around it) wins; it is
+ * required where the label holds the user's own data. Otherwise the control's
+ * aria-label or text, with a trailing count dropped (the region nav's
+ * "日本292" → "日本") so every button keeps one name. */
+export function clickName(target: EventTarget | null): string | null {
+  if (!(target instanceof Element)) return null;
+  const control = target.closest(CONTROL);
+  if (!control) return null;
+  const tracked = control.closest("[data-track]")?.getAttribute("data-track");
+  if (tracked) return tracked;
+  const label = control.getAttribute("aria-label") || control.textContent || "";
+  const name = label
+    .replace(/\s+/g, " ")
+    .replace(/\s*[\d–]+$/, "")
+    .trim()
+    .slice(0, 100);
+  return name || null;
+}

@@ -16,6 +16,7 @@ export function Segmented<T extends string>({
   options,
   onChange,
   render = (o) => o,
+  name = (o) => o,
   className,
 }: {
   label: string;
@@ -23,6 +24,8 @@ export function Segmented<T extends string>({
   options: readonly T[];
   onChange: (v: T) => void;
   render?: (o: T) => ReactNode;
+  /** The option's plain name, for analytics; render() may add extras. */
+  name?: (o: T) => string;
   className?: string;
 }) {
   const id = useId();
@@ -43,6 +46,7 @@ export function Segmented<T extends string>({
         <ToggleGroupItem
           key={o}
           value={o}
+          data-track={name(o)}
           className="text-muted-foreground hover:text-foreground data-[state=on]:text-foreground relative h-8 min-w-fit px-3 text-[13px] font-normal hover:bg-transparent data-[state=on]:bg-transparent data-[state=on]:font-medium max-md:h-10"
         >
           {o === value && (
