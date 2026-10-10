@@ -294,6 +294,16 @@ curl -H "Authorization: Bearer 你的CRON_SECRET" http://localhost:3000/api/trac
 - 用 `npm run build && npm start` 在本机跑生产版本、或者自己架服务器时，还要加 `AUTH_TRUST_HOST=true`。部署到 Vercel 不需要。
 - 改了这几个环境变量后要重新 `npm run build`（`npm run dev` 不用）。
 
+## 访问统计（Google Analytics）
+
+可选。设置了 `NEXT_PUBLIC_GA_ID` 才会加载 Google Analytics（GA4），没设置就完全没有统计脚本，所以本机和 Vercel 的预览部署都不会混进统计。
+
+1. 在 [Google Analytics](https://analytics.google.com) 建一个媒体资源和网站数据流，复制 **衡量 ID**（`G-` 开头）
+2. Vercel 项目 → **Settings → Environment Variables**，加 `NEXT_PUBLIC_GA_ID` = 衡量 ID，环境只勾 **Production**
+3. 重新部署（这个值在构建时写进页面，改了要重新部署）
+
+衡量 ID 不是密钥，本来就会出现在每个页面的源码里；放在环境变量里只是为了让本机和预览部署不统计。打开后，内容安全策略（CSP）会放行 Google Analytics 的域名，隐私政策也会自动加上统计的说明。切换片单区域和「发现」页面也会算作浏览（GA4 默认的「增强型衡量」会记录浏览器历史变化，保持开启即可）。
+
 ## 关于迁移
 
 `tools/migrate.py` 把原来三个 Word 文档解析成了上面的 JSON，共 **789** 条（292 动画 + 415 日漫 + 82 中韩漫，数量与原文一致）。三个 `.docx` 原件没有被改动，也不在仓库里。

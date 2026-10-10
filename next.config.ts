@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { withSerwist } from "@serwist/turbopack";
+import { GA_HOSTS, gaId } from "./src/lib/analytics";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -14,14 +15,17 @@ const isDev = process.env.NODE_ENV === "development";
 const IMAGE_HOSTS =
   "https://s4.anilist.co https://image.tmdb.org https://*.googleusercontent.com";
 const DRIVE_API = "https://www.googleapis.com";
+// Google Analytics' hosts, only while it is on (lib/analytics.ts). gtag.js is
+// a script from there, reports with fetch/beacons, and may use image pings.
+const ANALYTICS = gaId() ? ` ${GA_HOSTS.join(" ")}` : "";
 
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}${ANALYTICS}`,
   "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob: ${IMAGE_HOSTS}`,
+  `img-src 'self' data: blob: ${IMAGE_HOSTS}${ANALYTICS}`,
   "font-src 'self' data:",
-  `connect-src 'self' ${DRIVE_API}`,
+  `connect-src 'self' ${DRIVE_API}${ANALYTICS}`,
   "manifest-src 'self'",
   "worker-src 'self'",
   "object-src 'none'",
@@ -46,14 +50,14 @@ const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000" },
 ];
 
-/* The service worker's own policy. Posters, avatars and Drive calls pass
- * through it (sw.ts), and inside a worker every fetch counts as connect-src,
- * not img-src, so it must be allowed to reach the image hosts too. With the
- * pages' policy, every poster failed once the worker took over. */
+/* The service worker's own policy. Posters, avatars, Drive calls and gtag.js
+ * pass through it (sw.ts), and inside a worker every fetch counts as
+ * connect-src, not img-src, so it must be allowed to reach the image hosts
+ * too. With the pages' policy, every poster failed once the worker took over. */
 const swCsp = [
   "default-src 'self'",
   "script-src 'self'",
-  `connect-src 'self' ${DRIVE_API} ${IMAGE_HOSTS}`,
+  `connect-src 'self' ${DRIVE_API} ${IMAGE_HOSTS}${ANALYTICS}`,
 ].join("; ");
 
 const nextConfig: NextConfig = {

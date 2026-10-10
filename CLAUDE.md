@@ -50,7 +50,7 @@ Vitest covers pure logic only. To check UI behaviour, drive the running app in a
 
 ## Architecture
 
-The app is one client-side component: `src/app/[[...view]]/page.tsx` renders `src/components/MediaLog.tsx` (`"use client"`), which holds all state. The only server code is Google sign-in (`src/auth.ts` and `src/app/api/auth/[...nextauth]/route.ts`), the 发现 feeds (`src/app/api/discover/[feed]/route.ts`) and 更新提醒 (`src/app/api/track/[action]/route.ts`).
+The app is one client-side component: `src/app/[[...view]]/page.tsx` renders `src/components/MediaLog.tsx` (`"use client"`), which holds all state. Google Analytics (`src/components/Analytics.tsx`, `src/lib/analytics.ts`) loads from `layout.tsx` only when `NEXT_PUBLIC_GA_ID` is set; see Security. The only server code is Google sign-in (`src/auth.ts` and `src/app/api/auth/[...nextauth]/route.ts`), the 发现 feeds (`src/app/api/discover/[feed]/route.ts`) and 更新提醒 (`src/app/api/track/[action]/route.ts`).
 
 `page.tsx` passes `initialView` (from the URL, below), `syncEnabled` (all three auth env vars set), `moviesEnabled` (`TMDB_API_KEY` set) and `pushKey` (the VAPID public key, when reminders are configured). The pages are statically prerendered, so `next build` captures them; after changing the env, rebuild. `next dev` re-reads it.
 
@@ -238,6 +238,7 @@ The components under `src/components/`:
 - Google's consent screen needs both before the app can be published. The sidebar and the phone ⋯ menu link to them, because Google also wants the home page to link to the policy.
 - They are Chinese first with an English version below, and they describe exactly what the app stores and sends. That includes the Limited Use statement for Google user data.
 - When that changes, update them and `LEGAL_UPDATED`: for example a new third-party host, server-side storage, or 更新提醒 switched back on (it would store push subscriptions and follow lists on the server).
+- Like TMDB, Google Analytics appears in the privacy policy only while it is on (`gaId()`).
 - `CONTACT_EMAIL` is the public contact address, and should match the consent screen's support email.
 
 **Security.**
@@ -249,6 +250,10 @@ The components under `src/components/`:
   - The service worker gets its own CSP (`/serwist/:path*`). Posters, avatars and Drive calls pass through it, and inside a worker every fetch counts as `connect-src`. With the pages' policy, every poster failed in production.
   - Dev has no service worker, so check CSP changes with `next build` + `next start` (and `AUTH_TRUST_HOST=true`).
   - A new external host the app calls or loads images from must be added to these lists, or it will be blocked.
+- **Google Analytics.** `gaId()` (`lib/analytics.ts`) reads `NEXT_PUBLIC_GA_ID`, set on Vercel for Production only, so local and preview builds aren't counted. It is inlined at build, so changing it needs a redeploy.
+  - Only while it is set do the pages' CSP (script, img, connect) and the worker's (connect) allow `GA_HOSTS`, and does `/privacy` describe analytics. The worker passes GA requests straight to the network (`GOOGLE` in `sw.ts`); its default cross-origin rule would cache gtag.js as an opaque response.
+  - `Analytics` waits until the URL has no query, because launch URLs (`?title=…&url=…` from a share) carry the user's text and gtag's first `page_view` reports the full address. View switches are counted by GA4's enhanced measurement (history changes), not by the app.
+  - Nothing from the library or the Google account is sent to GA. Keep it that way; the privacy policy says so.
 
 ## Data and tools
 

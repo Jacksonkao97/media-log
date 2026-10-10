@@ -9,9 +9,9 @@
  *     "/discover/season", …; lib/view.ts), re-fetched each deploy. Any
  *     "/?…" — the 新增 shortcut, Android share links — is served from "/",
  *     so it works offline too.
- *   - never cached: Google (sign-in, Drive API, avatars). Drive replies hold
- *     the user's data, and a stale one would mislead sync; when offline those
- *     requests should simply fail, which sync already handles.
+ *   - never cached: Google (sign-in, Drive API, avatars, Analytics). Drive
+ *     replies hold the user's data, and a stale one would mislead sync; when
+ *     offline those requests should simply fail, which sync already handles.
  *   - not cached here either: AniList / TMDB posters (发现). They are opaque
  *     cross-origin responses, which Chrome counts as ~7 MB of quota each; the
  *     browser's own HTTP cache keeps them instead.
@@ -37,7 +37,8 @@ declare global {
 }
 declare const self: ServiceWorkerGlobalScope;
 
-const GOOGLE = /(^|\.)(google\.com|googleapis\.com|googleusercontent\.com)$/;
+const GOOGLE =
+  /(^|\.)(google\.com|googleapis\.com|googleusercontent\.com|googletagmanager\.com|google-analytics\.com)$/;
 const POSTERS = /(^|\.)(anilist\.co|tmdb\.org)$/;
 
 const serwist = new Serwist({
