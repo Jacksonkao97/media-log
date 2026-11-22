@@ -16,6 +16,7 @@ import {
   type Region,
   type RegionFile,
 } from "../schema";
+import { t } from "../i18n";
 import { snapshot } from "../transfer";
 import { mergeRegion } from "./merge";
 
@@ -159,6 +160,6 @@ function parseRegion(text: string, region: Region, name: string): RegionFile {
   try {
     return normalise(JSON.parse(text), region);
   } catch {
-    throw new Error(`Drive 上的 ${name} 不是合法的 JSON，请检查或删除它`);
+    throw new Error(t().driveCorrupt(name));
   }
 }

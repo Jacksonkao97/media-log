@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from "react";
 import type { FeedData } from "@/lib/discover/types";
+import { getLocale, t } from "@/lib/i18n";
 
 export type FeedState =
   | { status: "loading" }
@@ -22,12 +23,14 @@ async function load(url: string, signal: AbortSignal): Promise<FeedData> {
     res = await fetch(url, { signal });
   } catch (err) {
     if (signal.aborted) throw err;
-    throw new Error(
-      navigator.onLine ? "连不上服务器，请稍后再试" : "没有网络，联网后再试",
-    );
+    throw new Error(navigator.onLine ? t().serverUnreachable : t().noNetwork);
   }
   const body = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(body?.error ?? `服务器出错（${res.status}）`);
+  // The route explains failures in Chinese (it can't know the UI language).
+  if (!res.ok)
+    throw new Error(
+      (getLocale() === "zh" && body?.error) || t().serverError(res.status),
+    );
   return body as FeedData;
 }
 

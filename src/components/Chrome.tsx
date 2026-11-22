@@ -10,6 +10,7 @@ import {
   BellRing,
   Download,
   Ellipsis,
+  Languages,
   Library,
   MonitorDown,
   SquarePlus,
@@ -24,12 +25,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { shownFeeds, type FeedId } from "@/lib/discover/feeds";
+import { MESSAGES, setLocale, type Locale } from "@/lib/i18n";
 import { REGIONS, type Library as Lib, type Region } from "@/lib/schema";
 import { REMINDERS_ENABLED } from "@/lib/track/enabled";
 import { cn } from "@/lib/utils";
 import type { Section } from "@/lib/view";
 import { AccountCard, StatusDot, SyncMenuItems, isSignedIn } from "./Account";
-import { FEEDS } from "./Discover";
+import { FEED_ICON } from "./Discover";
+import { useLocale, useT } from "./locale";
 import { Segmented } from "./Segmented";
 import type { Install } from "./Pwa";
 import type { DriveSync } from "./useDriveSync";
@@ -40,10 +43,6 @@ export type StorageState =
 
 /** The two halves of the app: your own list, and what's new out there. */
 const SECTIONS: readonly Section[] = ["library", "discover"];
-const SECTION_LABEL: Record<Section, string> = {
-  library: "片单",
-  discover: "发现",
-};
 
 interface Props {
   library: Lib | null;
@@ -135,18 +134,52 @@ function TabButton({
 /** The privacy policy and terms. Google's consent screen asks for both, and
  *  for the home page to link to the policy. */
 function LegalLinks({ className }: { className?: string }) {
+  const t = useT();
   return (
     <nav
-      aria-label="隐私政策与服务条款"
+      aria-label={t.legalNav}
       className={cn("text-faint flex gap-3 text-xs", className)}
     >
       <Link href="/privacy" className="hover:text-foreground">
-        隐私政策
+        {t.privacy}
       </Link>
       <Link href="/terms" className="hover:text-foreground">
-        服务条款
+        {t.terms}
       </Link>
     </nav>
+  );
+}
+
+/** The language you'd switch to, named in itself: "English" while the UI is
+ *  Chinese, "中文" while it is English. */
+function useOtherLanguage() {
+  const other: Locale = useLocale() === "zh" ? "en" : "zh";
+  return {
+    other,
+    name: MESSAGES[other].langName,
+    lang: other === "en" ? "en" : "zh-Hans",
+    // One analytics name for the switch, whichever way it goes.
+    track: `语言：${MESSAGES[other].langName}`,
+    pick: () => setLocale(other),
+  };
+}
+
+/** The sidebar's language switch, next to the legal links. */
+function LanguageButton() {
+  const t = useT();
+  const { name, lang, track, pick } = useOtherLanguage();
+  return (
+    <Button
+      variant="ghost"
+      size="xs"
+      onClick={pick}
+      title={t.language}
+      data-track={track}
+      className="text-faint hover:text-foreground -my-1 h-6 gap-1 px-1.5 text-xs font-normal"
+    >
+      <Languages aria-hidden className="size-3.5" />
+      <span lang={lang}>{name}</span>
+    </Button>
   );
 }
 
@@ -169,21 +202,24 @@ export function Sidebar({
   onExport,
 }: Props) {
   const remindersOn = reminders.state === "on";
+  const t = useT();
   return (
     <aside className="bg-card sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r px-3 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))] md:flex">
       <div className="px-2">
         <Brand />
       </div>
 
-      <nav aria-label="区域" className="mt-8">
-        <p className="text-faint mb-1.5 px-3 text-xs font-medium">区域</p>
+      <nav aria-label={t.regions} className="mt-8">
+        <p className="text-faint mb-1.5 px-3 text-xs font-medium">
+          {t.regions}
+        </p>
         <ul className="flex flex-col gap-0.5">
           {REGIONS.map((r) => {
             const on = section === "library" && r === region;
             return (
               <li key={r}>
                 <NavButton on={on} onClick={() => onRegion(r)}>
-                  {r}
+                  {t.region[r]}
                   <span
                     className={cn(
                       "text-xs tabular-nums",
@@ -199,11 +235,14 @@ export function Sidebar({
         </ul>
       </nav>
 
-      <nav aria-label="发现" className="mt-6">
-        <p className="text-faint mb-1.5 px-3 text-xs font-medium">发现</p>
+      <nav aria-label={t.section.discover} className="mt-6">
+        <p className="text-faint mb-1.5 px-3 text-xs font-medium">
+          {t.section.discover}
+        </p>
         <ul className="flex flex-col gap-0.5">
           {shownFeeds(moviesEnabled).map((f) => {
-            const { label, icon: Icon } = FEEDS[f];
+            const Icon = FEED_ICON[f];
+            const { label } = t.feeds[f];
             return (
               <li key={f}>
                 <NavButton
@@ -231,9 +270,11 @@ export function Sidebar({
                 className="text-muted-foreground w-full justify-start"
               >
                 {remindersOn ? <BellRing aria-hidden /> : <Bell aria-hidden />}
-                更新提醒
+                {t.reminders}
                 {remindersOn && (
-                  <span className="text-faint ml-auto text-xs">已开启</span>
+                  <span className="text-faint ml-auto text-xs">
+                    {t.remindersOn}
+                  </span>
                 )}
               </Button>
             )}
@@ -244,7 +285,7 @@ export function Sidebar({
                 className="text-muted-foreground w-full justify-start"
               >
                 <MonitorDown aria-hidden />
-                安装应用
+                {t.installApp}
               </Button>
             )}
           </div>
@@ -256,7 +297,10 @@ export function Sidebar({
             storage={storage}
             transfer={{ onImport, onExport, disabled: !library }}
           />
-          <LegalLinks className="mt-3 px-2" />
+          <div className="mt-3 flex items-center justify-between gap-2 pl-2">
+            <LegalLinks />
+            <LanguageButton />
+          </div>
         </div>
       </div>
     </aside>
@@ -279,17 +323,19 @@ export function MobileBar({
   onImport,
   onExport,
 }: Props) {
+  const t = useT();
+  const language = useOtherLanguage();
   return (
     <header className="bg-background/90 sticky top-0 z-30 border-b pt-[env(safe-area-inset-top)] backdrop-blur-md md:hidden">
       <div className="flex h-14 items-center gap-2.5 pr-1 pl-4">
         <Logo />
         <Segmented
-          label="版块"
+          label={t.sectionsLabel}
           value={section}
           options={SECTIONS}
           onChange={onSection}
-          render={(s) => SECTION_LABEL[s]}
-          name={(s) => SECTION_LABEL[s]}
+          render={(s) => t.section[s]}
+          name={(s) => MESSAGES.zh.section[s]}
           className="w-36"
         />
         <div className="flex-1" />
@@ -300,7 +346,7 @@ export function MobileBar({
               variant="ghost"
               size="icon"
               className="size-11"
-              aria-label="更多"
+              aria-label={t.more}
               disabled={!library}
             >
               <Ellipsis aria-hidden className="size-5" />
@@ -325,14 +371,14 @@ export function MobileBar({
                   className="h-11 gap-3 text-[15px]"
                 >
                   <Upload aria-hidden className="size-[18px]" />
-                  导入数据
+                  {t.importData}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={onExport}
                   className="h-11 gap-3 text-[15px]"
                 >
                   <Download aria-hidden className="size-[18px]" />
-                  导出备份
+                  {t.exportBackup}
                 </DropdownMenuItem>
               </>
             )}
@@ -346,9 +392,11 @@ export function MobileBar({
                 ) : (
                   <Bell aria-hidden className="size-[18px]" />
                 )}
-                更新提醒
+                {t.reminders}
                 {reminders.state === "on" && (
-                  <span className="text-faint ml-auto text-xs">已开启</span>
+                  <span className="text-faint ml-auto text-xs">
+                    {t.remindersOn}
+                  </span>
                 )}
               </DropdownMenuItem>
             )}
@@ -358,14 +406,23 @@ export function MobileBar({
                 className="h-11 gap-3 text-[15px]"
               >
                 <SquarePlus aria-hidden className="size-[18px]" />
-                安装到主屏幕
+                {t.installHome}
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={language.pick}
+              data-track={language.track}
+              className="h-11 gap-3 text-[15px]"
+            >
+              <Languages aria-hidden className="size-[18px]" />
+              <span lang={language.lang}>{language.name}</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             {(
               [
-                ["/privacy", "隐私政策"],
-                ["/terms", "服务条款"],
+                ["/privacy", t.privacy],
+                ["/terms", t.terms],
               ] as const
             ).map(([href, label]) => (
               <DropdownMenuItem
@@ -381,10 +438,10 @@ export function MobileBar({
       </div>
 
       {section === "library" ? (
-        <nav aria-label="区域" className="flex gap-1 overflow-x-auto px-2">
+        <nav aria-label={t.regions} className="flex gap-1 overflow-x-auto px-2">
           {REGIONS.map((r) => (
             <TabButton key={r} on={r === region} onClick={() => onRegion(r)}>
-              {r}
+              {t.region[r]}
               <span className="text-faint text-xs tabular-nums">
                 {count(library, r)}
               </span>
@@ -392,10 +449,13 @@ export function MobileBar({
           ))}
         </nav>
       ) : (
-        <nav aria-label="发现" className="flex gap-1 overflow-x-auto px-2">
+        <nav
+          aria-label={t.section.discover}
+          className="flex gap-1 overflow-x-auto px-2"
+        >
           {shownFeeds(moviesEnabled).map((f) => (
             <TabButton key={f} on={f === feed} onClick={() => onFeed(f)}>
-              {FEEDS[f].short}
+              {t.feeds[f].short}
             </TabButton>
           ))}
         </nav>

@@ -35,6 +35,7 @@ import {
 import type { FeedId } from "@/lib/discover/feeds";
 import { toStatus } from "@/lib/discover/types";
 import { fmtDate } from "@/lib/format";
+import { t as msg } from "@/lib/i18n";
 import {
   REGIONS,
   WATCHES,
@@ -74,6 +75,7 @@ import { useDriveSync } from "./useDriveSync";
 import { ItemDialog, type DialogTarget } from "./ItemDialog";
 import { EmptyState, ItemList, ListSkeleton, type Flash } from "./ItemList";
 import { LibraryHeader } from "./LibraryHeader";
+import { useLocale, useT } from "./locale";
 
 const noFilters = (): Filters => ({
   category: new Set(),
@@ -110,6 +112,8 @@ export function MediaLog({
   const [dialog, setDialog] = useState<DialogTarget | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [flash, setFlash] = useState<Flash>(null);
+  const locale = useLocale();
+  const t = useT();
 
   const deferredQuery = useDeferredValue(query);
   /* The latest library, for handlers that run later than the render that
@@ -180,7 +184,7 @@ export function MediaLog({
         libRef.current = emptyLibrary();
         setLibrary(libRef.current);
         setStorage("unavailable");
-        toast.error("浏览器存储不可用（隐私模式？），改动不会被保存");
+        toast.error(msg().storageUnavailable);
         handleLaunch();
       });
     return () => {
@@ -193,13 +197,27 @@ export function MediaLog({
   // Every view has its own prerendered page (lib/view.ts). Switching views
   // only pushes its URL, so a reload paints the same view and Back returns
   // to the previous one, without the page reloading in between.
-  // The title follows too: pushState alone leaves the old one.
   useEffect(() => {
     const view = { section, region, feed };
     const path = viewPath(view);
     if (path !== location.pathname) history.pushState(null, "", path);
-    document.title = viewTitle(view);
   }, [section, region, feed]);
+  // Next's metadata keeps rendering the prerendered (Chinese) <title> and can
+  // put it back after hydration, so the title is held while this view shows.
+  useEffect(() => {
+    const title = viewTitle({ section, region, feed }, locale);
+    const apply = () => {
+      if (document.title !== title) document.title = title;
+    };
+    apply();
+    const watch = new MutationObserver(apply);
+    watch.observe(document.head, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
+    return () => watch.disconnect();
+  }, [section, region, feed, locale]);
 
   // Back/Forward: show the view the URL names. A feed URL doesn't name a
   // region (or the reverse), so that one stays as it was.
@@ -233,7 +251,7 @@ export function MediaLog({
         pendingWrites.current--;
         console.error(err);
         setStorage("error");
-        toast.error(`保存失败：${err.message}`);
+        toast.error(t.saveFailed(err.message));
       });
   }
 
@@ -246,7 +264,7 @@ export function MediaLog({
     toast(text, {
       duration: 5000,
       action: {
-        label: "撤销",
+        label: t.undo,
         onClick: () => {
           if (!libRef.current) return;
           commit(restoreItem(libRef.current, region, item, index));
@@ -327,11 +345,11 @@ export function MediaLog({
     // A new item is the last one in its region.
     flashRow(dialog.item?.id ?? edit.library[target].items.at(-1)!.id);
     toast.success(
-      dialog.item ? "已保存" : `已添加到 ${target}`,
+      dialog.item ? t.saved : t.addedTo(t.region[target]),
       // Saved from 发现: the list it went into is one tap away.
       section === "discover"
         ? {
-            action: { label: "查看", onClick: () => setSection("library") },
+            action: { label: t.view, onClick: () => setSection("library") },
           }
         : undefined,
     );
@@ -345,7 +363,7 @@ export function MediaLog({
     const index = lib[from].items.findIndex((x) => x.id === item.id);
     commit(deleteItem(lib, from, item.id));
     setDialogOpen(false);
-    undoable(`已删除「${item.name}」`, from, item, index);
+    undoable(t.deleted(item.name), from, item, index);
   }
 
   function bump(item: Item) {
@@ -357,7 +375,7 @@ export function MediaLog({
     commit(edit);
     flashRow(item.id);
     const now = edit.library[region].items.find((x) => x.id === item.id);
-    undoable(`「${item.name}」→ ${now?.progress}`, region, item, index);
+    undoable(t.bumped(item.name, now?.progress ?? ""), region, item, index);
   }
 
   /* ----------------------------------------------------- import/export */
@@ -373,28 +391,29 @@ export function MediaLog({
         };
       }
     } catch (err) {
-      toast.error(`导入失败：${(err as Error).message}`);
+      toast.error(t.importFailed((err as Error).message));
       return;
     }
 
     const lib = libRef.current;
     const regions = REGIONS.filter((r) => imported[r]);
     const summary = regions
-      .map((r) => `${r} ${imported[r]!.items.length} 条`)
-      .join("、");
+      .map((r) => t.importCount(t.region[r], imported[r]!.items.length))
+      .join(t.listSep);
     const overwriting = regions.filter((r) => lib[r].items.length);
     // An import replaces whole regions, so show both sides, and call out any
     // region the file would leave empty.
     const emptied = overwriting.filter((r) => !imported[r]!.items.length);
     const changes = overwriting.map((r) => {
       const n = imported[r]!.items.length;
-      return `${r}：现有 ${lib[r].items.length} 条 → 导入 ${n} 条${n ? "" : "（会被清空）"}`;
+      return t.importChange(t.region[r], lib[r].items.length, n);
     });
     if (
       overwriting.length &&
       !confirm(
-        (emptied.length ? `注意：${emptied.join("、")} 会被清空！\n\n` : "") +
-          `将用导入的文件覆盖：\n${changes.join("\n")}\n\n确定继续？`,
+        (emptied.length
+          ? t.importEmptied(emptied.map((r) => t.region[r]).join(t.listSep))
+          : "") + t.importConfirm(changes.join("\n")),
       )
     ) {
       return;
@@ -402,10 +421,10 @@ export function MediaLog({
 
     commit({ library: { ...lib, ...imported }, touched: regions });
     if (!imported[region]) setRegion(regions[0]);
-    toast.success(`已导入：${summary}`, {
+    toast.success(t.imported(summary), {
       duration: 8000,
       action: {
-        label: "撤销",
+        label: t.undo,
         // Puts the imported regions back as they were; the rest stay as is.
         onClick: () => {
           if (!libRef.current) return;
@@ -414,7 +433,7 @@ export function MediaLog({
             library: { ...libRef.current, ...before },
             touched: regions,
           });
-          toast("已撤销导入");
+          toast(t.importUndone);
         },
       },
     });
@@ -427,7 +446,7 @@ export function MediaLog({
     downloadJson(snapshot(lib), `medialog-${stamp}.json`);
     markExported();
     const n = REGIONS.reduce((s, r) => s + lib[r].items.length, 0);
-    toast.success(`已导出 ${n} 条到 medialog-${stamp}.json`);
+    toast.success(t.exported(n, `medialog-${stamp}.json`));
   }
 
   const hasItems =
@@ -489,33 +508,32 @@ export function MediaLog({
     body = (
       <EmptyState
         icon={FileUp}
-        title="还没有数据"
+        title={t.noData}
         actions={
           <>
             <Button onClick={pickFiles}>
               <FileUp aria-hidden />
-              导入数据
+              {t.importData}
             </Button>
             <Button variant="outline" onClick={openNew}>
               <Plus aria-hidden />
-              手动新增
+              {t.addManually}
             </Button>
           </>
         }
       >
-        选择 data/ 文件夹里的
-        JSON（可以一次多选），或之前导出的备份文件。数据只保存在这个浏览器里。
+        {t.noDataHint}
       </EmptyState>
     );
   } else if (all.length === 0) {
     body = (
       <EmptyState
         icon={Plus}
-        title={`${region} 还没有作品`}
+        title={t.regionEmpty(t.region[region])}
         actions={
           <Button onClick={openNew}>
             <Plus aria-hidden />
-            新增作品
+            {t.addWork}
           </Button>
         }
       />
@@ -524,15 +542,15 @@ export function MediaLog({
     body = (
       <EmptyState
         icon={SearchX}
-        title="没有符合条件的作品"
+        title={t.noMatches}
         actions={
           <Button variant="outline" onClick={clearFilters}>
             <SearchX aria-hidden />
-            清除筛选
+            {t.clearFilters}
           </Button>
         }
       >
-        换个关键词，或者去掉一些筛选条件。
+        {t.noMatchesHint}
       </EmptyState>
     );
   } else {
@@ -640,7 +658,7 @@ export function MediaLog({
             <motion.button
               type="button"
               onClick={openNew}
-              aria-label="新增作品"
+              aria-label={t.addWork}
               initial={{ scale: 0.6, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               whileTap={{ scale: 0.92 }}

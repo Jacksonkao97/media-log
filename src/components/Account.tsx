@@ -28,8 +28,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { relTime } from "@/lib/format";
+import { MESSAGES, type Locale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { StorageState } from "./Chrome";
+import { useLocale, useT } from "./locale";
 import type { DriveSync } from "./useDriveSync";
 
 export interface Transfer {
@@ -56,12 +58,12 @@ function useNow() {
   return now;
 }
 
-const LOCAL: Record<StorageState, [dot: string, text: string]> = {
-  loading: ["bg-faint", "加载中…"],
-  saving: ["bg-primary animate-pulse", "保存中…"],
-  saved: ["bg-green", "已保存在本浏览器"],
-  error: ["bg-red", "保存失败"],
-  unavailable: ["bg-amber", "浏览器存储不可用，改动不会保存"],
+const LOCAL_DOT: Record<StorageState, string> = {
+  loading: "bg-faint",
+  saving: "bg-primary animate-pulse",
+  saved: "bg-green",
+  error: "bg-red",
+  unavailable: "bg-amber",
 };
 
 /** One dot + one line for "where is my data": local storage problems first,
@@ -70,24 +72,27 @@ export function statusOf(
   storage: StorageState,
   sync: DriveSync,
   now: number,
+  locale: Locale = "zh",
 ): [dot: string, text: string] {
-  if (storage === "error" || storage === "unavailable") return LOCAL[storage];
+  const t = MESSAGES[locale];
+  const local: [string, string] = [LOCAL_DOT[storage], t.local[storage]];
+  if (storage === "error" || storage === "unavailable") return local;
   switch (sync.status) {
     case "syncing":
-      return ["bg-primary animate-pulse", "正在同步到 Google Drive…"];
+      return ["bg-primary animate-pulse", t.syncing];
     case "synced":
       return [
         "bg-green",
-        `已同步到 Google Drive · ${sync.lastSynced ? relTime(sync.lastSynced, now) : ""}`,
+        t.synced(sync.lastSynced ? relTime(sync.lastSynced, now, locale) : ""),
       ];
     case "offline":
-      return ["bg-faint", "离线，联网后自动同步"];
+      return ["bg-faint", t.offline];
     case "error":
-      return ["bg-red", `同步失败：${sync.error ?? ""}`];
+      return ["bg-red", t.syncFailed(sync.error ?? "")];
     case "reauth":
-      return ["bg-amber", sync.error ?? "需要重新登录 Google"];
+      return ["bg-amber", sync.error ?? t.needReauth];
     default:
-      return LOCAL[storage];
+      return local;
   }
 }
 
@@ -101,7 +106,7 @@ export function StatusDot({
   withText?: boolean;
 }) {
   const now = useNow();
-  const [dot, text] = statusOf(storage, sync, now);
+  const [dot, text] = statusOf(storage, sync, now, useLocale());
   return (
     <span
       role="status"
@@ -130,6 +135,7 @@ export function AccountCard({
   transfer: Transfer;
 }) {
   const { account } = sync;
+  const t = useT();
   if (!isSignedIn(sync) || !account) {
     const canSignIn = sync.status !== "disabled" && sync.status !== "checking";
     return (
@@ -140,7 +146,7 @@ export function AccountCard({
         {canSignIn && (
           <Button variant="outline" onClick={sync.signIn} className="w-full">
             <Cloud aria-hidden />
-            登录 Google 同步
+            {t.signInSync}
           </Button>
         )}
         <TransferButtons transfer={transfer} />
@@ -171,7 +177,7 @@ export function AccountCard({
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="账号与同步">
+            <Button variant="ghost" size="icon-sm" aria-label={t.accountMenu}>
               <Ellipsis aria-hidden />
             </Button>
           </DropdownMenuTrigger>
@@ -189,7 +195,7 @@ export function AccountCard({
             className="ml-auto h-auto shrink-0 p-0"
             onClick={sync.status === "reauth" ? sync.signIn : sync.syncNow}
           >
-            {sync.status === "reauth" ? "重新登录" : "重试"}
+            {sync.status === "reauth" ? t.signInAgain : t.retry}
           </Button>
         )}
       </div>
@@ -198,25 +204,26 @@ export function AccountCard({
 }
 
 function TransferButtons({ transfer }: { transfer: Transfer }) {
+  const t = useT();
   return (
     <div className="grid grid-cols-2 gap-2">
       <Button
         variant="outline"
         disabled={transfer.disabled}
         onClick={transfer.onImport}
-        title="导入 data/ 里的 JSON 或导出的备份"
+        title={t.importTitle}
       >
         <Upload aria-hidden />
-        导入
+        {t.import}
       </Button>
       <Button
         variant="outline"
         disabled={transfer.disabled}
         onClick={transfer.onExport}
-        title="下载所有区域的合并快照"
+        title={t.exportTitle}
       >
         <Download aria-hidden />
-        导出
+        {t.export}
       </Button>
     </div>
   );
@@ -235,13 +242,14 @@ export function SyncMenuItems({
 }) {
   const item = phone ? "h-11 gap-3 text-[15px]" : "";
   const icon = phone ? "size-[18px]" : "";
+  const t = useT();
   if (sync.status === "disabled" || sync.status === "checking") return null;
 
   if (!sync.account) {
     return (
       <DropdownMenuItem onSelect={sync.signIn} className={item}>
         <Cloud aria-hidden className={icon} />
-        登录 Google 同步
+        {t.signInSync}
       </DropdownMenuItem>
     );
   }
@@ -255,7 +263,7 @@ export function SyncMenuItems({
       {sync.status === "reauth" ? (
         <DropdownMenuItem onSelect={sync.signIn} className={item}>
           <TriangleAlert aria-hidden className={icon} />
-          重新登录 Google
+          {t.reauthGoogle}
         </DropdownMenuItem>
       ) : (
         <DropdownMenuItem
@@ -271,7 +279,7 @@ export function SyncMenuItems({
               className={cn(icon, sync.status === "syncing" && "animate-spin")}
             />
           )}
-          立即同步
+          {t.syncNow}
         </DropdownMenuItem>
       )}
       <DropdownMenuItem
@@ -280,7 +288,7 @@ export function SyncMenuItems({
         className={item}
       >
         <Upload aria-hidden className={icon} />
-        导入数据
+        {t.importData}
       </DropdownMenuItem>
       <DropdownMenuItem
         onSelect={transfer.onExport}
@@ -288,19 +296,20 @@ export function SyncMenuItems({
         className={item}
       >
         <Download aria-hidden className={icon} />
-        导出备份
+        {t.exportBackup}
       </DropdownMenuItem>
       {sync.folderUrl && (
         <DropdownMenuItem asChild className={item}>
           <a href={sync.folderUrl} target="_blank" rel="noreferrer noopener">
-            <FolderOpen aria-hidden className={icon} />在 Google Drive 中打开
+            <FolderOpen aria-hidden className={icon} />
+            {t.openDrive}
           </a>
         </DropdownMenuItem>
       )}
       <DropdownMenuSeparator />
       <DropdownMenuItem onSelect={sync.signOut} className={item}>
         <LogOut aria-hidden className={icon} />
-        退出登录
+        {t.signOut}
       </DropdownMenuItem>
     </>
   );

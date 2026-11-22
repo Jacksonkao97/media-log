@@ -3,6 +3,8 @@
  * only the options the UI offers, so the upstream requests (and the cache
  * entries they create) stay a small, fixed set. */
 
+import { MESSAGES, type Locale } from "../messages";
+
 export const FEED_IDS = ["airing", "season", "manga", "movies"] as const;
 export type FeedId = (typeof FEED_IDS)[number];
 
@@ -11,15 +13,6 @@ export type FeedId = (typeof FEED_IDS)[number];
  *  is a 404. Setting the key and redeploying brings it back. */
 export const shownFeeds = (movies: boolean): FeedId[] =>
   FEED_IDS.filter((f) => f !== "movies" || movies);
-
-/** Each feed's name, here rather than in Discover.tsx so the server can use
- *  it too (page titles, lib/view.ts). */
-export const FEED_LABEL: Record<FeedId, string> = {
-  airing: "新番时间表",
-  season: "季度新番",
-  manga: "热门漫画",
-  movies: "电影",
-};
 
 /* ------------------------------------------------------------ seasons */
 
@@ -43,9 +36,9 @@ export function shiftSeason(s: SeasonRef, by: number): SeasonRef {
   return { season: SEASONS[((i % 4) + 4) % 4], year: Math.floor(i / 4) };
 }
 
-/** "2026年10月": how Chinese sites name a season. */
-export const seasonLabel = (s: SeasonRef) =>
-  `${s.year}年${SEASONS.indexOf(s.season) * 3 + 1}月`;
+/** "2026年10月", how Chinese sites name a season, or "Fall 2026". */
+export const seasonLabel = (s: SeasonRef, locale: Locale = "zh") =>
+  MESSAGES[locale].season(s.season, s.year);
 
 /* -------------------------------------------------------- manga, movies */
 
@@ -54,13 +47,9 @@ export const MANGA_COUNTRIES = { JP: "日本", CN: "中国", KR: "韩国" } as c
 export type MangaCountry = keyof typeof MANGA_COUNTRIES;
 const COUNTRY_CODES = Object.keys(MANGA_COUNTRIES) as MangaCountry[];
 
-export const MOVIE_LISTS = {
-  now_playing: "正在热映",
-  upcoming: "即将上映",
-  trending: "本周热门",
-} as const;
-export type MovieList = keyof typeof MOVIE_LISTS;
-const MOVIE_LIST_IDS = Object.keys(MOVIE_LISTS) as MovieList[];
+/** TMDB's lists; their names are in lib/messages.ts. */
+export const MOVIE_LISTS = ["now_playing", "upcoming", "trending"] as const;
+export type MovieList = (typeof MOVIE_LISTS)[number];
 
 /* ----------------------------------------------------------- requests */
 
@@ -117,7 +106,7 @@ export function parseFeed(
     }
     case "movies": {
       const list = q.get("list") ?? "now_playing";
-      return isOneOf(MOVIE_LIST_IDS, list) ? { feed, list } : null;
+      return isOneOf(MOVIE_LISTS, list) ? { feed, list } : null;
     }
     default:
       return null;

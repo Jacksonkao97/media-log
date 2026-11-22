@@ -6,6 +6,7 @@
  * files are updated in place (same file id), so Drive's own version history
  * accumulates; snapshots go into MediaLog/snapshots. */
 
+import { t } from "../i18n";
 import type { Remote, RemoteFile } from "./engine";
 
 const API = "https://www.googleapis.com/drive/v3";
@@ -59,8 +60,7 @@ export function googleDrive(
       headers: { ...init.headers, Authorization: `Bearer ${token}` },
     });
     if (res.status === 401 && !retried) return call(url, init, true);
-    if (res.status === 401)
-      throw new AuthError("Google 登录已失效，请重新登录");
+    if (res.status === 401) throw new AuthError(t().sessionExpired);
     if (!res.ok) {
       let detail = "";
       try {

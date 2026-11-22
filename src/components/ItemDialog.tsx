@@ -33,6 +33,7 @@ import {
   type ItemFields,
   type Region,
 } from "@/lib/schema";
+import { useT } from "./locale";
 import { CATEGORY } from "./media";
 import { Segmented } from "./Segmented";
 
@@ -61,12 +62,13 @@ export function ItemDialog({
   onDelete,
 }: Props) {
   const isMobile = useIsMobile();
+  const t = useT();
   if (!target) return null;
 
-  const title = target.item ? "编辑作品" : "新增作品";
+  const title = target.item ? t.editWork : t.addWork;
   const description = target.item
-    ? `修改「${target.item.name}」`
-    : `添加到「${target.region}」`;
+    ? t.editDesc(target.item.name)
+    : t.addDesc(t.region[target.region]);
   // The form remounts on every open (Radix unmounts closed content), so its
   // state always starts from the current target.
   const form = (
@@ -144,6 +146,7 @@ function EditorForm({
   const set = <K extends keyof ItemFields>(k: K, v: ItemFields[K]) =>
     setF((prev) => ({ ...prev, [k]: v }));
   const editing = Boolean(target.item);
+  const t = useT();
 
   const submit = (ev: FormEvent) => {
     ev.preventDefault();
@@ -164,89 +167,90 @@ function EditorForm({
   return (
     <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-col gap-4 overflow-y-auto px-6 pt-1 pb-5 max-md:px-4">
-        <Field id="f-name" label="名称" required>
+        <Field id="f-name" label={t.name} required>
           <Input
             id="f-name"
             className={INPUT}
             required
             autoFocus={autoFocus}
             autoComplete="off"
-            placeholder="例如：全知读者视角"
+            placeholder={t.namePlaceholder}
             value={f.name}
             onChange={(e) => set("name", e.target.value)}
           />
         </Field>
 
         <div className="grid grid-cols-[1fr_auto] gap-4 max-md:grid-cols-1">
-          <Field
-            id="f-progress"
-            label="进度"
-            hint="「125」「第41卷」都行，+1 加第一个数字"
-          >
+          <Field id="f-progress" label={t.progress} hint={t.progressHint}>
             <Input
               id="f-progress"
               className={INPUT}
               autoComplete="off"
-              placeholder="125 / 第41卷 / 剧场版"
+              placeholder={t.progressPlaceholder}
               value={f.progress}
               onChange={(e) => set("progress", e.target.value)}
             />
           </Field>
-          <Field label="观看状态">
+          <Field label={t.watchState}>
             <Segmented
-              label="观看状态"
+              label={t.watchState}
               value={f.watch}
               options={WATCHES}
               onChange={(v) => set("watch", v)}
+              render={(w) => t.watch[w]}
             />
           </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
-          <Field label="分类">
-            <Segmented
-              label="分类"
-              value={f.category}
-              options={CATEGORIES}
-              onChange={(v) => set("category", v)}
-              render={(c) => {
-                const Icon = CATEGORY[c].icon;
-                return (
-                  <>
-                    <Icon aria-hidden className="size-3.5" />
-                    {c}
-                  </>
-                );
-              }}
-            />
-          </Field>
-          <Field label="状态">
-            <Segmented
-              label="状态"
-              value={f.status}
-              options={STATUSES}
-              onChange={(v) => set("status", v)}
-            />
-          </Field>
-        </div>
-
-        <Field
-          label="区域"
-          hint={
-            editing && region !== target.region
-              ? `保存后会从「${target.region}」移到「${region}」`
-              : undefined
-          }
-        >
+        {/* Four categories need the full width; status (two options) shares
+            the next row with the region. */}
+        <Field label={t.categoryLabel}>
           <Segmented
-            label="区域"
-            value={region}
-            options={REGIONS}
-            onChange={setRegion}
+            label={t.categoryLabel}
+            value={f.category}
+            options={CATEGORIES}
+            onChange={(v) => set("category", v)}
+            render={(c) => {
+              const Icon = CATEGORY[c].icon;
+              return (
+                <>
+                  <Icon aria-hidden className="size-3.5" />
+                  {t.category[c]}
+                </>
+              );
+            }}
           />
         </Field>
 
-        <Field id="f-url" label="链接">
+        <div className="grid grid-cols-[auto_1fr] gap-4 max-md:grid-cols-1">
+          <Field label={t.statusLabel}>
+            <Segmented
+              label={t.statusLabel}
+              value={f.status}
+              options={STATUSES}
+              onChange={(v) => set("status", v)}
+              render={(s) => t.status[s]}
+            />
+          </Field>
+          <Field
+            label={t.regionLabel}
+            hint={
+              editing && region !== target.region
+                ? t.moveHint(t.region[target.region], t.region[region])
+                : undefined
+            }
+          >
+            <Segmented
+              label={t.regionLabel}
+              value={region}
+              options={REGIONS}
+              onChange={setRegion}
+              render={(r) => t.region[r]}
+            />
+          </Field>
+        </div>
+
+        <Field id="f-url" label={t.link}>
           <Input
             id="f-url"
             className={INPUT}
@@ -259,12 +263,12 @@ function EditorForm({
           />
         </Field>
 
-        <Field id="f-note" label="备注">
+        <Field id="f-note" label={t.note}>
           <Textarea
             id="f-note"
             className="bg-background min-h-16"
             rows={2}
-            placeholder="正常更新 / 停更2年了 / 无望第二季…"
+            placeholder={t.notePlaceholder}
             value={f.note}
             onChange={(e) => set("note", e.target.value)}
           />
@@ -280,7 +284,7 @@ function EditorForm({
             className="text-destructive hover:bg-destructive/10 hover:text-destructive -ml-2 max-md:h-11"
           >
             <Trash2 aria-hidden />
-            删除
+            {t.delete}
           </Button>
         )}
         <div className="flex-1" />
@@ -290,10 +294,10 @@ function EditorForm({
           onClick={onCancel}
           className="max-md:h-11"
         >
-          取消
+          {t.cancel}
         </Button>
         <Button type="submit" className="min-w-20 max-md:h-11">
-          保存
+          {t.save}
         </Button>
       </footer>
     </form>

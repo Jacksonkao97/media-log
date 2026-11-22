@@ -15,6 +15,7 @@ import { progNum } from "@/lib/items";
 import { fmtDate, relDate } from "@/lib/format";
 import type { Item } from "@/lib/schema";
 import { cn } from "@/lib/utils";
+import { useLocale, useT } from "./locale";
 import { CategoryTile, Tag } from "./media";
 
 /* Phone: tile · title · progress. Desktop adds status and last-updated columns. */
@@ -34,6 +35,7 @@ interface Props {
 /* Desktop: the rows scroll inside the card, under a fixed column header,
  * once the list is taller than the space MediaLog leaves it. */
 export function ItemList({ items, flash, onEdit, onBump }: Props) {
+  const t = useT();
   return (
     <div className="bg-card overflow-hidden rounded-xl border md:flex md:min-h-0 md:flex-col">
       <div
@@ -44,10 +46,10 @@ export function ItemList({ items, flash, onEdit, onBump }: Props) {
         )}
       >
         <span className="w-9" />
-        <span>名称</span>
-        <span>进度</span>
-        <span>状态</span>
-        <span>更新</span>
+        <span>{t.col.name}</span>
+        <span>{t.col.progress}</span>
+        <span>{t.col.status}</span>
+        <span>{t.col.updated}</span>
       </div>
       <ul className="divide-divider divide-y md:min-h-0 md:overflow-y-auto">
         {items.map((it) => (
@@ -74,6 +76,8 @@ function Row({
   // could have arrived through an imported file.
   const href = /^https?:\/\//i.test(it.url) ? it.url : null;
   const canBump = progNum(it.progress) !== null;
+  const t = useT();
+  const locale = useLocale();
 
   return (
     <li
@@ -96,7 +100,7 @@ function Row({
       <button
         type="button"
         onClick={() => onEdit(it)}
-        aria-label={`编辑「${it.name}」`}
+        aria-label={t.editAria(it.name)}
         data-track="编辑作品"
         className="focus-visible:ring-ring/50 absolute inset-0 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
       />
@@ -119,7 +123,7 @@ function Row({
                 href={href}
                 target="_blank"
                 rel="noreferrer noopener"
-                aria-label={`打开「${it.name}」的链接`}
+                aria-label={t.openLinkAria(it.name)}
                 data-track="打开作品链接"
                 title={href}
               >
@@ -136,7 +140,7 @@ function Row({
         <p className="text-faint mt-1 flex items-center gap-2 text-xs md:hidden">
           <Tag value={it.status} />
           <span aria-hidden>·</span>
-          <span>{relDate(it.updatedAt)}</span>
+          <span>{relDate(it.updatedAt, locale)}</span>
         </p>
       </div>
 
@@ -149,9 +153,9 @@ function Row({
           variant="outline"
           size="sm"
           onClick={() => onBump(it)}
-          aria-label={`「${it.name}」进度 +1`}
+          aria-label={t.bumpAria(it.name)}
           data-track="进度 +1"
-          title="进度 +1"
+          title={t.bumpTitle}
           className={cn(
             "text-muted-foreground hover:border-primary hover:text-primary relative z-10 min-w-10 px-2 text-xs font-semibold tabular-nums active:scale-95 max-md:h-10 max-md:min-w-11",
             !canBump && "invisible",
@@ -169,7 +173,7 @@ function Row({
         title={fmtDate(it.updatedAt)}
         className="text-faint text-xs tabular-nums max-md:hidden"
       >
-        {relDate(it.updatedAt)}
+        {relDate(it.updatedAt, locale)}
       </time>
     </li>
   );
@@ -210,10 +214,11 @@ function Progress({
 }
 
 export function ListSkeleton() {
+  const t = useT();
   return (
     <div
       aria-busy="true"
-      aria-label="加载中"
+      aria-label={t.loadingShort}
       className="bg-card rounded-xl border"
     >
       {Array.from({ length: 8 }, (_, i) => (

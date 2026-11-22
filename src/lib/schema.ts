@@ -1,12 +1,12 @@
 /* The data model. Every allowed value lives here; the UI, sorting and import
  * code all read from these lists, so adding a value is a one-file change
- * (plus a colour in components/Pill.tsx).
+ * (plus a look in components/media.tsx and labels in lib/messages.ts).
  *
  * The on-disk shape — data/{region}.json, the Drive backups and the snapshot
  * export — is unchanged from v1, so old files import as-is. */
 
 export const REGIONS = ["日本", "中国", "韩国", "欧美"] as const;
-export const CATEGORIES = ["动画", "漫画", "电影"] as const;
+export const CATEGORIES = ["动画", "漫画", "电影", "电视剧"] as const;
 export const STATUSES = ["未完结", "完结"] as const;
 export const WATCHES = ["未看", "看着", "看完了"] as const;
 

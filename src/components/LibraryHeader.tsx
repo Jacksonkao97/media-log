@@ -31,19 +31,20 @@ import {
   type Watch,
 } from "@/lib/schema";
 import { cn } from "@/lib/utils";
+import { useT } from "./locale";
 import { CATEGORY } from "./media";
 import { Segmented } from "./Segmented";
 
 const ALL = "全部";
 type WatchTab = typeof ALL | Watch;
 
-const SORTS: [SortKey, string][] = [
-  ["name", "名称"],
-  ["progress", "进度"],
-  ["updatedAt", "最近更新"],
-  ["createdAt", "最近添加"],
-  ["status", "状态"],
-  ["category", "分类"],
+const SORTS: SortKey[] = [
+  "name",
+  "progress",
+  "updatedAt",
+  "createdAt",
+  "status",
+  "category",
 ];
 
 const CHIP =
@@ -76,6 +77,7 @@ interface Props {
 /* On desktop the page doesn't scroll (the list scrolls inside ItemList), so
  * the title and filter bar stay in view without being sticky. */
 export function LibraryHeader({ searchRef, ...p }: Props) {
+  const t = useT();
   const watch: WatchTab = [...p.filters.watch][0] ?? ALL;
   const chipCount = p.filters.category.size + p.filters.status.size;
   const narrowed = Boolean(p.query) || chipCount > 0;
@@ -86,31 +88,33 @@ export function LibraryHeader({ searchRef, ...p }: Props) {
     <>
       <div className="mb-4 flex items-end justify-between gap-4 max-md:sr-only">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{p.region}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {t.region[p.region]}
+          </h1>
           <p className="text-muted-foreground mt-0.5 text-sm tabular-nums">
-            {p.ready ? `${p.total} 部作品` : "加载中…"}
+            {p.ready ? t.works(p.total) : t.loading}
             {p.ready && p.shown !== p.total && (
-              <span className="text-faint"> · 显示 {p.shown} 部</span>
+              <span className="text-faint">{t.showing(p.shown)}</span>
             )}
           </p>
         </div>
         <Button onClick={p.onNew} disabled={!p.ready} className="max-md:hidden">
           <Plus aria-hidden />
-          新增
+          {t.add}
         </Button>
       </div>
 
       {p.showFilters && (
         <div className="mb-1 flex flex-col gap-3 pb-3 md:pt-3">
           <Segmented<WatchTab>
-            label="观看状态"
+            label={t.watchState}
             value={watch}
             options={[ALL, ...WATCHES]}
             onChange={(w) => p.onWatch(w === ALL ? null : w)}
             className="md:w-fit"
             render={(o) => (
               <>
-                {o}
+                {o === ALL ? t.all : t.watch[o]}
                 <span className="text-faint text-xs tabular-nums">
                   {p.watchCounts[o]}
                 </span>
@@ -120,7 +124,7 @@ export function LibraryHeader({ searchRef, ...p }: Props) {
 
           <div className="flex flex-wrap items-center gap-2">
             <label className="relative min-w-0 flex-1 md:max-w-xs md:basis-64">
-              <span className="sr-only">搜索</span>
+              <span className="sr-only">{t.search}</span>
               <Search
                 aria-hidden
                 className="text-faint pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
@@ -130,7 +134,7 @@ export function LibraryHeader({ searchRef, ...p }: Props) {
                 type="search"
                 value={p.query}
                 onChange={(e) => p.onQuery(e.target.value)}
-                placeholder="搜索名称或备注"
+                placeholder={t.searchPlaceholder}
                 autoComplete="off"
                 enterKeyHint="search"
                 className="bg-card pr-10 pl-9 max-md:h-11 [&::-webkit-search-cancel-button]:hidden"
@@ -139,7 +143,7 @@ export function LibraryHeader({ searchRef, ...p }: Props) {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="清空搜索"
+                  aria-label={t.clearSearch}
                   onClick={() => p.onQuery("")}
                   className="text-faint absolute top-1/2 right-1 -translate-y-1/2 max-md:size-10"
                 >
@@ -163,7 +167,7 @@ export function LibraryHeader({ searchRef, ...p }: Props) {
               )}
             >
               <SlidersHorizontal aria-hidden />
-              筛选
+              {t.filters}
               {chipCount > 0 && (
                 <span className="bg-primary text-primary-foreground rounded-full px-1.5 text-xs leading-5 tabular-nums">
                   {chipCount}
@@ -180,7 +184,7 @@ export function LibraryHeader({ searchRef, ...p }: Props) {
             >
               <ToggleGroup
                 type="multiple"
-                aria-label="分类"
+                aria-label={t.categoryLabel}
                 spacing={1.5}
                 value={[...p.filters.category]}
                 onValueChange={(v) => p.onFilter("category", v)}
@@ -196,14 +200,14 @@ export function LibraryHeader({ searchRef, ...p }: Props) {
                       className={CHIP}
                     >
                       <Icon aria-hidden className="size-3.5" />
-                      {c}
+                      {t.category[c]}
                     </ToggleGroupItem>
                   );
                 })}
               </ToggleGroup>
               <ToggleGroup
                 type="multiple"
-                aria-label="状态"
+                aria-label={t.statusLabel}
                 spacing={1.5}
                 value={[...p.filters.status]}
                 onValueChange={(v) => p.onFilter("status", v)}
@@ -216,21 +220,21 @@ export function LibraryHeader({ searchRef, ...p }: Props) {
                     variant="outline"
                     className={CHIP}
                   >
-                    {s}
+                    {t.status[s]}
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
 
               <div className="ml-auto flex items-center gap-1">
                 <NativeSelect
-                  aria-label="排序"
+                  aria-label={t.sort}
                   value={p.sortKey}
                   onChange={(e) => p.onSort(e.target.value as SortKey)}
                   className="bg-card max-md:h-11"
                 >
-                  {SORTS.map(([k, label]) => (
+                  {SORTS.map((k) => (
                     <NativeSelectOption key={k} value={k}>
-                      {label}
+                      {t.sorts[k]}
                     </NativeSelectOption>
                   ))}
                 </NativeSelect>
@@ -240,9 +244,7 @@ export function LibraryHeader({ searchRef, ...p }: Props) {
                       variant="ghost"
                       size="icon"
                       aria-label={
-                        p.sortDir === "asc"
-                          ? "升序（点击切换）"
-                          : "降序（点击切换）"
+                        p.sortDir === "asc" ? t.ascToggle : t.descToggle
                       }
                       onClick={p.onSortDir}
                       className="max-md:size-11"
@@ -255,7 +257,7 @@ export function LibraryHeader({ searchRef, ...p }: Props) {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    {p.sortDir === "asc" ? "升序" : "降序"}
+                    {p.sortDir === "asc" ? t.asc : t.desc}
                   </TooltipContent>
                 </Tooltip>
               </div>
@@ -268,7 +270,7 @@ export function LibraryHeader({ searchRef, ...p }: Props) {
                 className="max-md:h-11 max-md:w-full"
               >
                 <X aria-hidden />
-                清除筛选
+                {t.clearFilters}
               </Button>
             )}
           </div>

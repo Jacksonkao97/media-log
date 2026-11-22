@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/",
     name: "MediaLog · 追番追漫记录",
     short_name: "MediaLog",
-    description: "动画 / 漫画 / 电影追踪表",
+    description: "动画 / 漫画 / 电影 / 电视剧追踪表",
     lang: "zh-Hans",
     start_url: "/",
     scope: "/",

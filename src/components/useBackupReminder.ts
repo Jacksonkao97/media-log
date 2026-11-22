@@ -5,6 +5,7 @@
 
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { t as msg } from "@/lib/i18n";
 import { backupCheck } from "@/lib/backup";
 
 /** When the count started: the last export, or the first check. */
@@ -40,11 +41,11 @@ export function useBackupReminder(active: boolean, onExport: () => void) {
     const check = backupCheck(since.get(), Date.now());
     since.set(check.since);
     if (!check.remind) return;
-    toast(`已经 ${check.days} 天没有导出备份了`, {
-      description:
-        "没有登录 Google 同步时，数据只存在这个浏览器里，清除浏览器数据就会丢失。",
+    const t = msg();
+    toast(t.backupDue(check.days), {
+      description: t.backupWhy,
       duration: 15_000,
-      action: { label: "导出备份", onClick: onExport },
+      action: { label: t.exportBackup, onClick: onExport },
     });
   }, [active, onExport]);
 }

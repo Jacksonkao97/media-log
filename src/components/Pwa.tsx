@@ -16,6 +16,8 @@ import {
 import { SerwistProvider, useSerwist } from "@serwist/turbopack/react";
 import { Share, SquarePlus } from "lucide-react";
 import { toast } from "sonner";
+import { t as msg } from "@/lib/i18n";
+import { useT } from "./locale";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -49,9 +51,9 @@ function UpdateNotice() {
     if (!serwist) return;
     const onControlling = (event: { isUpdate?: boolean }) => {
       if (!event.isUpdate) return;
-      toast("MediaLog 有新版本", {
+      toast(msg().newVersion, {
         duration: Infinity,
-        action: { label: "刷新", onClick: () => location.reload() },
+        action: { label: msg().reload, onClick: () => location.reload() },
       });
     };
     serwist.addEventListener("controlling", onControlling);
@@ -82,7 +84,7 @@ if (typeof window !== "undefined") {
   window.addEventListener("appinstalled", () => {
     deferred = null;
     notify();
-    toast.success("已安装 MediaLog");
+    toast.success(msg().installed);
   });
 }
 
@@ -140,14 +142,15 @@ export function useInstall(): Install {
 /** iOS has no install API: walk the user through Safari's Share menu. */
 export function IosInstallDialog({ install }: { install: Install }) {
   const { iosOpen, setIosOpen } = install;
+  const t = useT();
+  const [s1a, s1b, s1c] = t.iosStep1;
+  const [s2a, s2b, s2c, s2d] = t.iosStep2;
   return (
     <Dialog open={iosOpen} onOpenChange={setIosOpen}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>安装到主屏幕</DialogTitle>
-          <DialogDescription>
-            装好后像 App 一样从主屏幕打开，全屏显示，离线也能用。
-          </DialogDescription>
+          <DialogTitle>{t.installHome}</DialogTitle>
+          <DialogDescription>{t.iosWhy}</DialogDescription>
         </DialogHeader>
         <ol className="flex flex-col gap-3 text-sm">
           <li className="flex items-center gap-3">
@@ -155,7 +158,9 @@ export function IosInstallDialog({ install }: { install: Install }) {
               <Share aria-hidden className="size-[18px]" />
             </span>
             <span>
-              1. 点浏览器工具栏里的 <b>分享</b> 按钮
+              {s1a}
+              <b>{s1b}</b>
+              {s1c}
             </span>
           </li>
           <li className="flex items-center gap-3">
@@ -163,13 +168,16 @@ export function IosInstallDialog({ install }: { install: Install }) {
               <SquarePlus aria-hidden className="size-[18px]" />
             </span>
             <span>
-              2. 往下找到 <b>添加到主屏幕</b>，再点 <b>添加</b>
+              {s2a}
+              <b>{s2b}</b>
+              {s2c}
+              <b>{s2d}</b>
             </span>
           </li>
         </ol>
         <DialogFooter>
           <Button onClick={() => setIosOpen(false)} className="max-md:h-11">
-            知道了
+            {t.gotIt}
           </Button>
         </DialogFooter>
       </DialogContent>
