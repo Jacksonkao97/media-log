@@ -1,13 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { Analytics } from "@/components/Analytics";
+import { LocaleProvider } from "@/components/locale";
 import { PwaProvider } from "@/components/Pwa";
 import { gaId, gaSnippet } from "@/lib/analytics";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "MediaLog",
-  description: "动画 / 漫画 / 电影追踪表",
+  description: "动画 / 漫画 / 电影 / 电视剧追踪表",
   applicationName: "MediaLog",
   // iOS home-screen app: full screen, content under a translucent status bar
   // (bars already pad for env(safe-area-inset-top)).
@@ -48,7 +49,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </head>
       )}
       <body>
-        <PwaProvider>{children}</PwaProvider>
+        <LocaleProvider>
+          <PwaProvider>{children}</PwaProvider>
+        </LocaleProvider>
         {/* useSearchParams needs a Suspense boundary on prerendered pages. */}
         {ga && (
           <Suspense>

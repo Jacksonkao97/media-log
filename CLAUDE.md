@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MediaLog is a personal anime / manga / movie tracker. This is v2, a Next.js rebuild, live at https://media-log-seven.vercel.app (Vercel deploys `main`); it was merged into `main` before the first deploy. The v1 version (plain `index.html` + `app.js`, with edits written to `data/*.json` through the File System Access API) lives in the history from before that merge.
+MediaLog is a personal anime / manga / movie / TV series tracker. This is v2, a Next.js rebuild, live at https://media-log-seven.vercel.app (Vercel deploys `main`); it was merged into `main` before the first deploy. The v1 version (plain `index.html` + `app.js`, with edits written to `data/*.json` through the File System Access API) lives in the history from before that merge.
 
-UI text and the README are Simplified Chinese; code comments are English.
+UI text is Simplified Chinese by default, with an English option (see **Languages** below); the README is Chinese; code comments are English.
 
 **Agreed plan, in order:**
 
@@ -60,7 +60,7 @@ The app is one client-side component: `src/app/[[...view]]/page.tsx` renders `sr
 
 - Every view has its own path. `/` is 日本; `/cn`, `/kr` and `/west` are the other regions; `/discover/<feed>` is a 发现 feed. `generateStaticParams` prerenders every view (`viewPaths()`: 8, or 7 without 电影) and `dynamicParams = false` makes every other path a 404. A reload therefore paints the right region or feed at once. Restoring a view on the client, from `localStorage` or a hash, can't do that: the first paint would be the prerendered default, then it would jump.
 - `MediaLog` starts from `initialView`. When `section`, `region` or `feed` changes, an effect calls `history.pushState` with `viewPath()`. Next integrates native `pushState`, so nothing reloads and the library stays in memory. On `popstate` (Back/Forward) the state is read back with `parseView()`. A feed URL doesn't name a region, so the phone's 片单 switch returns to the region last shown, and vice versa.
-- Each page's title names its view (`viewTitle()`, e.g. 韩国 · MediaLog), from `generateMetadata` when prerendered and from the same effect after a switch. Feed names live in `FEED_LABEL` (`lib/discover/feeds.ts`) so the server can read them; `Discover.tsx` is a client module.
+- Each page's title names its view (`viewTitle()`, e.g. 韩国 · MediaLog, or Korea · MediaLog in English), from `generateMetadata` when prerendered and from an effect in `MediaLog` after a switch of view or language. Next's metadata can put the prerendered `<title>` back after hydration, so that effect watches `<head>` and re-applies its title while the view shows. Feed names live in `lib/messages.ts` (`feeds`) so the server can read them; `Discover.tsx` is a client module.
 - The service worker precaches the same pages (`viewPaths()`), so each one opens offline. The installed app's `start_url` and the 新增 shortcut stay on `/`.
 
 The components under `src/components/`:
@@ -85,12 +85,14 @@ The components under `src/components/`:
 
 - It defines the enum lists (`REGIONS`, `CATEGORIES`, `STATUSES`, `WATCHES`) and the types derived from them.
 - `normalise()` is the schema gate. Everything read from storage or an imported file passes through it. Unknown enum values are coerced to defaults, and missing ids or timestamps are filled in.
-- To add a value, change it here. Then give it a look in `src/components/media.tsx`: categories need an icon and tint in `CATEGORY`, and watch/status values need a colour in `TAG_TONE`. Both are typed, so the compiler flags a missing one. A new region also goes in `tools/migrate.py`'s `REGIONS` and the README.
+- To add a value, change it here. Then give it a look in `src/components/media.tsx`: categories need an icon and tint in `CATEGORY`, and watch/status values need a colour in `TAG_TONE`. Give it an English label in `lib/messages.ts` too (`region`, `category`, `watch`, `status`). All are typed, so the compiler flags a missing one. A new region also goes in `tools/migrate.py`'s `REGIONS` and the README.
+- A new value reaches devices still running an older build as an unknown one, and their `normalise()` coerces it to the default (电视剧 → 动画) on read. The update toast asks them to reload; until they do, an edit there could sync the coerced value back.
 
 **The data format must stay compatible with v1.**
 
 - `RegionFile` is exactly the shape of `data/{region}.json` and of v1's Drive backups. The snapshot export (`{ app: "MediaLog", regions }`) is also unchanged.
-- The item key order in `normalise()` matches `tools/migrate.py`. If you add or reorder fields, change both.
+- The item key order in `normalise()` matches `tools/migrate.py`. If you add or reorder fields, change both. `tidyItem()` (`schema.ts`) writes that order, and edits pass through it too.
+- `cast` (actors, free text) is the one optional field: it is left out of the item when empty, so items without it keep v1's exact shape and `migrate.py` never writes it. The editor offers it behind a 添加演员 button for 电视剧, and shows it directly for any item that already has one. It is searched with name and note, and shown under the name in the list. Older builds' `normalise()` drops it, like an unknown category (above).
 - Import (`src/lib/transfer.ts`) accepts either format. A region file's region comes from its `region` field, falling back to the filename.
 - Import rejects a file unless every item is an object with a non-empty `name`. `normalise()` would otherwise turn stray values into blank rows. One bad file stops the whole import.
 - Import replaces whole regions. Before overwriting a non-empty region, the confirm shows both counts and calls out any region the file would empty. The success toast offers 撤销, which puts the imported regions back as they were.
@@ -199,6 +201,16 @@ The components under `src/components/`:
   - If the server refuses a new subscription, the browser subscription is undone.
 - **Scheduling** is left to whatever hosts it (see README): an Upstash QStash schedule, Vercel Cron (once a day on Hobby; it sends `CRON_SECRET` itself), or crontab + curl. The site is on Vercel, but no `vercel.json` is committed: Next.js needs no config there, and the only use would be this cron, which waits until 更新提醒 is switched back on.
 
+**Languages** (`src/lib/messages.ts`, `src/lib/i18n.ts`, `src/components/locale.tsx`).
+
+- Chinese is the default; English is offered by a switch at the bottom of the sidebar (next to the legal links) and in the phone ⋯ menu. The choice is kept in `localStorage` `medialog:lang`, per browser, and other tabs follow it (`storage` event). It is not synced.
+- **Every UI string lives in `messages.ts`**: `zh` is the reference and `en` is typed by it, so a missing entry is a compile error. Strings with values are functions (`t.works(n)`). Add new text there, never inline.
+- **Data stays Chinese.** Regions, categories, watch and status are stored as their Chinese values (v1's format); `t.region[r]`, `t.category[c]` and so on only say how they look. Never store or compare a translated label.
+- **Reading it.** Components call `useT()` (messages) or `useLocale()`; `LocaleProvider` (in `layout.tsx`) holds the one store subscription and passes it down by context, so the 700 rows don't each subscribe. Code outside React (toasts from callbacks with stale closures, lib errors such as `transfer.ts` and the sync engine) calls `t()` from `lib/i18n.ts`. Formatting helpers take a `locale` argument that defaults to `"zh"` (`relDate`, `relTime`, `timetableDays`, `airingNote`, `seasonLabel`, `viewTitle`, `statusOf`).
+- **Prerendering.** Pages are prerendered in Chinese and hydrate in Chinese (`getServerSnapshot` is `"zh"`); English takes over right after hydration, so an English reader sees Chinese for a moment on a cold load. `<html lang>` follows the choice.
+- **Server text.** `/api/discover` errors are Chinese; in English `useFeed` shows a generic message by status instead.
+- **Not translated:** the 更新提醒 dialog (switched off), the privacy policy and terms (already bilingual), the manifest, and AniList/TMDB titles.
+
 **Sorting quirks are intentional** and match v1:
 
 - `progress` is free text and sorts by the first number in it. Rows with no number sink to the bottom in both directions.
@@ -254,7 +266,7 @@ The components under `src/components/`:
   - Only while it is set do the pages' CSP (script, img, connect) and the worker's (connect) allow `GA_HOSTS`, and does `/privacy` describe analytics. The worker passes GA requests straight to the network (`GOOGLE` in `sw.ts`); its default cross-origin rule would cache gtag.js as an opaque response.
   - **The tag is in the prerendered HTML**: `layout.tsx` renders gtag.js and `gaSnippet()` as plain `<script>`s in `<head>`. A tag added only after hydration (as `@next/third-parties` inside a `Suspense` did) is invisible to anything that reads the page source, such as GA's installation test.
   - The snippet skips `config` (the first `page_view`) on a launch URL (`isLaunch()` in `lib/launch.ts`: `new`, `title`, `text`, `url`), because a share carries the user's text and `page_view` reports the full address. `Analytics` sends `config` once the query is stripped. `MediaLog` strips only a launch's query, so campaign tags (`?utm_source=…`) stay for GA's traffic sources; the referrer needs nothing. View switches are counted by GA4's enhanced measurement (history changes), not by the app.
-  - **Clicks.** One capture-phase listener in `Analytics` sends `button_click` with `button_name` for every button, link, menu item, tab and toggle. `clickName()` names it by the nearest `data-track`, else the control's `aria-label` or text, minus a trailing count (the region nav's). `Segmented` sets `data-track` from its `name` prop (default: the option), so render extras such as dates stay out. To see `button_name` in GA reports, it is registered as an event-scoped custom dimension there.
+  - **Clicks.** One capture-phase listener in `Analytics` sends `button_click` with `button_name` for every button, link, menu item, tab and toggle. `clickName()` names it by the nearest `data-track`, else the control's `aria-label` or text, minus a trailing count (the region nav's). `Segmented` sets `data-track` from its `name` prop (default: the option), so render extras such as dates stay out; give it the Chinese name when the option shown is translated. Names are reported in Chinese whatever the UI language: `Analytics` passes each through `zhName()` (`lib/i18n.ts`), which maps every English string in the messages back to its Chinese one, so the stats don't split by language. To see `button_name` in GA reports, it is registered as an event-scoped custom dimension there.
   - Nothing from the library or the Google account is sent to GA. Keep it that way; the privacy policy says so. **A control whose label holds user data (an item's name) must set a fixed `data-track`**, as `ItemList` and `Discover` do; otherwise its label is sent.
 
 ## Data and tools

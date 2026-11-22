@@ -3,6 +3,7 @@
 
 import { getCsrfToken } from "next-auth/react";
 import type { Session } from "next-auth";
+import { t } from "../i18n";
 import { kvGet, kvSet } from "../storage";
 import type { SyncStore } from "./engine";
 import { AuthError } from "./google-drive";
@@ -45,8 +46,8 @@ export async function getAccessToken(force = false): Promise<string> {
     cached = null;
     throw new AuthError(
       session?.error === "DriveScopeMissing"
-        ? "登录时没有允许访问 Google Drive，请重新登录并勾选 Drive 权限"
-        : "Google 登录已失效，请重新登录",
+        ? t().driveScopeMissing
+        : t().sessionExpired,
     );
   }
   cached = {

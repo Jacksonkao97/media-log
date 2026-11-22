@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { signIn, signOut } from "next-auth/react";
 import { toast } from "sonner";
+import { t as msg } from "@/lib/i18n";
 import { withTabLock } from "@/lib/tabs";
 import type { Library, Region, RegionFile } from "@/lib/schema";
 import {
@@ -147,17 +148,15 @@ export function useDriveSync({
       setLastSynced(Date.now());
       setFolderUrl(drive.current?.folderUrl() ?? null);
       const { added, updated, removed } = report.pulled;
+      const t = msg();
       const parts = [
-        added && `新增 ${added}`,
-        updated && `更新 ${updated}`,
-        removed && `删除 ${removed}`,
+        added && t.pulledAdded(added),
+        updated && t.pulledUpdated(updated),
+        removed && t.pulledRemoved(removed),
       ].filter(Boolean);
-      if (parts.length)
-        toast.success(`已从 Google Drive 同步：${parts.join(" · ")}`);
+      if (parts.length) toast.success(t.pulled(parts.join(" · ")));
       else if (announce)
-        toast.success(
-          report.pushed.length ? "已上传到 Google Drive" : "已是最新",
-        );
+        toast.success(report.pushed.length ? t.pushed : t.upToDate);
     } catch (err) {
       inflight.current--;
       console.error(err);
@@ -169,11 +168,11 @@ export function useDriveSync({
       } else {
         const message =
           err instanceof TypeError
-            ? "网络错误，稍后会自动重试"
+            ? msg().networkError
             : (err as Error).message;
         setStatus("error");
         setError(message);
-        if (announce) toast.error(`同步失败：${message}`);
+        if (announce) toast.error(msg().syncFailed(message));
       }
     }
   }, []);
@@ -217,8 +216,8 @@ export function useDriveSync({
           setStatus("reauth");
           setError(
             session.error === "DriveScopeMissing"
-              ? "登录时没有允许访问 Google Drive，请重新登录并勾选 Drive 权限"
-              : "Google 登录已失效，请重新登录",
+              ? msg().driveScopeMissing
+              : msg().sessionExpired,
           );
           return;
         }
@@ -241,7 +240,7 @@ export function useDriveSync({
         }
         console.error(err);
         setStatus("error");
-        setError("无法获取登录状态：服务器的登录配置可能有误（见服务器日志）");
+        setError(msg().sessionUnavailable);
       });
     return () => {
       cancelled = true;
@@ -317,7 +316,7 @@ export function useDriveSync({
         await signOut({ redirect: false });
       } catch (err) {
         console.error(err);
-        toast.error("退出登录失败，请联网后再试");
+        toast.error(msg().signOutFailed);
         return;
       }
       lastAccount.set(null);
@@ -329,7 +328,7 @@ export function useDriveSync({
       setLastSynced(null);
       setError(null);
       setStatus("signed-out");
-      toast.success("已退出登录。数据仍保存在这个浏览器里");
+      toast.success(msg().signedOut);
     }, []),
   };
 }

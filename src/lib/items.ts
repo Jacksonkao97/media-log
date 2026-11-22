@@ -7,6 +7,7 @@ import {
   STATUSES,
   WATCHES,
   nowIso,
+  tidyItem,
   uuid,
   type Category,
   type Item,
@@ -91,7 +92,8 @@ export function filterItems(items: Item[], q: string, f: Filters): Item[] {
       (!f.watch.size || f.watch.has(it.watch)) &&
       (!needle ||
         it.name.toLowerCase().includes(needle) ||
-        it.note.toLowerCase().includes(needle)),
+        it.note.toLowerCase().includes(needle) ||
+        (it.cast ?? "").toLowerCase().includes(needle)),
   );
 }
 
@@ -115,7 +117,12 @@ export function addItem(
   fields: ItemFields,
 ): Edit {
   const ts = nowIso();
-  const item: Item = { id: uuid(), ...fields, createdAt: ts, updatedAt: ts };
+  const item = tidyItem({
+    id: uuid(),
+    ...fields,
+    createdAt: ts,
+    updatedAt: ts,
+  });
   return {
     library: withItems(lib, region, [...lib[region].items, item]),
     touched: [region],
@@ -132,7 +139,8 @@ export function updateItem(
 ): Edit | null {
   const old = lib[from].items.find((x) => x.id === id);
   if (!old) return null;
-  const updated: Item = { ...old, ...fields, updatedAt: nowIso() };
+  // The editor always sends `cast` ("" when cleared), so it can be removed.
+  const updated = tidyItem({ ...old, ...fields, updatedAt: nowIso() });
 
   if (to === from) {
     const items = lib[from].items.map((x) => (x.id === id ? updated : x));

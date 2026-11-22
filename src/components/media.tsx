@@ -1,14 +1,16 @@
 /* How the data model's values look. Both maps are typed by the enums in
  * lib/schema.ts, so adding a value there makes the compiler ask for one here. */
 
-import { BookOpen, Film, Tv, type LucideIcon } from "lucide-react";
+import { BookOpen, Film, MonitorPlay, Tv, type LucideIcon } from "lucide-react";
 import type { Category, Status, Watch } from "@/lib/schema";
 import { cn } from "@/lib/utils";
+import { useT } from "./locale";
 
 export const CATEGORY: Record<Category, { icon: LucideIcon; tone: string }> = {
   动画: { icon: Tv, tone: "bg-purple/12 text-purple" },
   漫画: { icon: BookOpen, tone: "bg-sky/12 text-sky" },
   电影: { icon: Film, tone: "bg-red/12 text-red" },
+  电视剧: { icon: MonitorPlay, tone: "bg-amber/12 text-amber" },
 };
 
 const TAG_TONE: Record<Watch | Status, string> = {
@@ -28,11 +30,12 @@ export function CategoryTile({
   className?: string;
 }) {
   const { icon: Icon, tone } = CATEGORY[category];
+  const label = useT().category[category];
   return (
     <span
       role="img"
-      aria-label={category}
-      title={category}
+      aria-label={label}
+      title={label}
       className={cn(
         "inline-flex size-9 shrink-0 items-center justify-center rounded-lg",
         tone,
@@ -46,6 +49,7 @@ export function CategoryTile({
 
 /** Watch or series state: a coloured dot plus the word, so colour is never the only signal. */
 export function Tag({ value }: { value: Watch | Status }) {
+  const t = useT();
   return (
     <span
       className={cn(
@@ -54,7 +58,7 @@ export function Tag({ value }: { value: Watch | Status }) {
       )}
     >
       <span aria-hidden className="size-1.5 rounded-full bg-current" />
-      {value}
+      {value in t.watch ? t.watch[value as Watch] : t.status[value as Status]}
     </span>
   );
 }

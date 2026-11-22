@@ -24,7 +24,6 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Toggle } from "@/components/ui/toggle";
 import {
-  FEED_LABEL,
   MANGA_COUNTRIES,
   MOVIE_LISTS,
   feedUrl,
@@ -33,7 +32,7 @@ import {
   shiftSeason,
   type FeedId,
   type MangaCountry,
-  type MovieList,
+  type SeasonRef,
 } from "@/lib/discover/feeds";
 import { libraryLookup, type Owned } from "@/lib/discover/match";
 import {
@@ -43,41 +42,21 @@ import {
   timetableDays,
 } from "@/lib/discover/schedule";
 import type { Airing, FeedData, Work } from "@/lib/discover/types";
+import { MESSAGES, type Messages } from "@/lib/i18n";
 import type { Library } from "@/lib/schema";
 import { cn } from "@/lib/utils";
 import { EmptyState, ListSkeleton } from "./ItemList";
+import { useLocale, useT } from "./locale";
 import { CATEGORY, Tag } from "./media";
 import { Segmented } from "./Segmented";
 import { useFeed } from "./useFeed";
 
-export const FEEDS: Record<
-  FeedId,
-  { label: string; short: string; icon: LucideIcon; blurb: string }
-> = {
-  airing: {
-    label: FEED_LABEL.airing,
-    short: "时间表",
-    icon: CalendarClock,
-    blurb: "这一周每天更新的动画，按你的时区排",
-  },
-  season: {
-    label: FEED_LABEL.season,
-    short: "新番",
-    icon: Sparkles,
-    blurb: "一季开播的动画，按人气排",
-  },
-  manga: {
-    label: FEED_LABEL.manga,
-    short: "漫画",
-    icon: BookOpen,
-    blurb: "最近最多人在看的漫画",
-  },
-  movies: {
-    label: FEED_LABEL.movies,
-    short: "电影",
-    icon: Clapperboard,
-    blurb: "正在上映和即将上映的电影",
-  },
+/** Each feed's icon; names and blurbs are in lib/messages.ts (feeds). */
+export const FEED_ICON: Record<FeedId, LucideIcon> = {
+  airing: CalendarClock,
+  season: Sparkles,
+  manga: BookOpen,
+  movies: Clapperboard,
 };
 
 /** Tapping a work: open its library entry if it has one, else add it. */
@@ -104,7 +83,7 @@ export function Discover({
     [library],
   );
   const view = { lookup, onPick };
-  const { label, blurb } = FEEDS[feed];
+  const { label, blurb } = useT().feeds[feed];
   return (
     <>
       {/* Phones name the feed in the top bar's tabs. */}
@@ -128,11 +107,18 @@ export function Discover({
 
 function AiringFeed({ lookup, onPick }: View) {
   const feed = useFeed(feedUrl({ feed: "airing" }));
+  const t = useT();
+  const locale = useLocale();
   // Fixed while the feed is open; nothing here needs to tick.
   const [now] = useState(() => Date.now());
-  const days = useMemo(() => timetableDays(new Date(now)), [now]);
-  const [label, setLabel] = useState(days[1].label); // 今天
-  const day = days.find((d) => d.label === label) ?? days[1];
+  const days = useMemo(
+    () => timetableDays(new Date(now), locale),
+    [now, locale],
+  );
+  // Analytics names the days in Chinese, whatever the UI language.
+  const zhDays = useMemo(() => timetableDays(new Date(now)), [now]);
+  const [date, setDate] = useState(days[1].date); // 今天
+  const day = days.find((d) => d.date === date) ?? days[1];
   const [mine, setMine] = useState(false);
 
   return (
@@ -141,19 +127,18 @@ function AiringFeed({ lookup, onPick }: View) {
         {/* Phones scroll the seven days sideways. */}
         <div className="-mx-4 max-w-[calc(100%+2rem)] overflow-x-auto px-4 md:mx-0 md:max-w-full md:px-0">
           <Segmented
-            label="日期"
-            value={label}
-            options={days.map((d) => d.label)}
-            onChange={setLabel}
+            label={t.day}
+            value={day.date}
+            options={days.map((d) => d.date)}
+            onChange={setDate}
             className="w-max"
-            render={(l) => (
+            render={(d) => (
               <>
-                {l}
-                <span className="text-faint text-xs tabular-nums">
-                  {days.find((d) => d.label === l)!.date}
-                </span>
+                {days.find((x) => x.date === d)!.label}
+                <span className="text-faint text-xs tabular-nums">{d}</span>
               </>
             )}
+            name={(d) => zhDays.find((x) => x.date === d)!.label}
           />
         </div>
         <Toggle
@@ -163,7 +148,7 @@ function AiringFeed({ lookup, onPick }: View) {
           className="text-muted-foreground data-[state=on]:border-primary/50 data-[state=on]:bg-primary-soft data-[state=on]:text-foreground h-8 rounded-full px-3 text-[13px] font-normal shadow-none max-md:h-10 max-md:px-3.5"
         >
           <Check aria-hidden />
-          只看片单里的
+          {t.mineOnly}
         </Toggle>
       </div>
       <FeedBody feed={feed} skeleton={<ListSkeleton />}>
@@ -174,15 +159,9 @@ function AiringFeed({ lookup, onPick }: View) {
             return (
               <EmptyState
                 icon={CalendarClock}
-                title={
-                  mine && all.length
-                    ? "片单里的动画这天都不更新"
-                    : "这一天没有动画更新"
-                }
+                title={mine && all.length ? t.noneFromLibrary : t.noneThisDay}
               >
-                {mine && all.length
-                  ? `这天有 ${all.length} 部更新，关掉「只看片单里的」可以看到。`
-                  : undefined}
+                {mine && all.length ? t.hiddenAiring(all.length) : undefined}
               </EmptyState>
             );
           return (
@@ -204,87 +183,91 @@ function AiringFeed({ lookup, onPick }: View) {
   );
 }
 
+const seasonKey = (s: SeasonRef) => `${s.season}-${s.year}`;
+
 function SeasonFeed(view: View) {
+  const t = useT();
+  const locale = useLocale();
   const [now] = useState(() => new Date());
   const seasons = useMemo(
     () => [-1, 0, 1].map((i) => shiftSeason(seasonOf(now), i)),
     [now],
   );
-  const labels = seasons.map(seasonLabel);
-  const [label, setLabel] = useState(labels[1]);
-  const season = seasons[labels.indexOf(label)];
+  const keys = seasons.map(seasonKey);
+  const [key, setKey] = useState(keys[1]);
+  const season = seasons[keys.indexOf(key)];
   const feed = useFeed(feedUrl({ feed: "season", season }));
+  const at = (k: string) => seasons[keys.indexOf(k)];
   return (
     <>
       <Segmented
-        label="季度"
-        value={label}
-        options={labels}
-        onChange={setLabel}
+        label={t.seasonLabel}
+        value={key}
+        options={keys}
+        onChange={setKey}
         className="mb-4 md:w-fit"
-        render={(l) => (
+        render={(k) => (
           <>
-            {l}
-            {l === labels[1] && (
-              <span className="text-faint text-xs">本季</span>
+            {seasonLabel(at(k), locale)}
+            {k === keys[1] && (
+              <span className="text-faint text-xs">{t.thisSeason}</span>
             )}
           </>
         )}
+        name={(k) => seasonLabel(at(k))}
       />
-      <WorkGrid feed={feed} empty="这一季还没有公布作品" {...view} />
+      <WorkGrid feed={feed} empty={t.seasonEmpty} {...view} />
     </>
   );
 }
 
-const COUNTRY_BY_LABEL = Object.fromEntries(
-  Object.entries(MANGA_COUNTRIES).map(([code, label]) => [label, code]),
-) as Record<string, MangaCountry>;
+const COUNTRIES = Object.keys(MANGA_COUNTRIES) as MangaCountry[];
 
 function MangaFeed(view: View) {
-  const [label, setLabel] = useState<string>(MANGA_COUNTRIES.JP);
-  const feed = useFeed(
-    feedUrl({ feed: "manga", country: COUNTRY_BY_LABEL[label] }),
-  );
+  const t = useT();
+  const [country, setCountry] = useState<MangaCountry>("JP");
+  const feed = useFeed(feedUrl({ feed: "manga", country }));
   return (
     <>
       <Segmented
-        label="国家"
-        value={label}
-        options={Object.values(MANGA_COUNTRIES)}
-        onChange={setLabel}
+        label={t.country}
+        value={country}
+        options={COUNTRIES}
+        onChange={setCountry}
         className="mb-4 md:w-fit"
+        render={(c) => t.region[MANGA_COUNTRIES[c]]}
+        name={(c) => MANGA_COUNTRIES[c]}
       />
-      <WorkGrid feed={feed} empty="暂时没有数据" {...view} />
+      <WorkGrid feed={feed} empty={t.nothingYet} {...view} />
     </>
   );
 }
 
-const LIST_BY_LABEL = Object.fromEntries(
-  Object.entries(MOVIE_LISTS).map(([id, label]) => [label, id]),
-) as Record<string, MovieList>;
-
 function MovieFeed(view: View) {
-  const [label, setLabel] = useState<string>(MOVIE_LISTS.now_playing);
-  const feed = useFeed(feedUrl({ feed: "movies", list: LIST_BY_LABEL[label] }));
+  const t = useT();
+  const [list, setList] = useState<(typeof MOVIE_LISTS)[number]>("now_playing");
+  const feed = useFeed(feedUrl({ feed: "movies", list }));
   return (
     <>
       <Segmented
-        label="榜单"
-        value={label}
-        options={Object.values(MOVIE_LISTS)}
-        onChange={setLabel}
+        label={t.list}
+        value={list}
+        options={MOVIE_LISTS}
+        onChange={setList}
         className="mb-4 md:w-fit"
+        render={(l) => t.movieLists[l]}
+        name={(l) => MESSAGES.zh.movieLists[l]}
       />
-      <WorkGrid feed={feed} empty="暂时没有数据" {...view} />
+      <WorkGrid feed={feed} empty={t.nothingYet} {...view} />
     </>
   );
 }
 
 function MoviesNotSetUp() {
+  const t = useT();
   return (
-    <EmptyState icon={Clapperboard} title="电影资讯还没有配置">
-      电影数据来自 TMDB，需要一个免费的 API key：在服务器上设置环境变量
-      TMDB_API_KEY，步骤见 README「新番 / 电影资讯」。
+    <EmptyState icon={Clapperboard} title={t.moviesNotSetUp}>
+      {t.moviesNotSetUpHint}
     </EmptyState>
   );
 }
@@ -301,16 +284,17 @@ function FeedBody({
   skeleton: ReactNode;
   children: (data: FeedData) => ReactNode;
 }) {
+  const t = useT();
   if (feed.status === "loading") return skeleton;
   if (feed.status === "error")
     return (
       <EmptyState
         icon={CloudOff}
-        title="加载失败"
+        title={t.loadFailed}
         actions={
           <Button variant="outline" onClick={feed.reload}>
             <RotateCw aria-hidden />
-            重试
+            {t.retry}
           </Button>
         }
       >
@@ -360,14 +344,13 @@ function PickButton({
   owned: Owned | null;
   onPick: PickWork;
 }) {
+  const t = useT();
   return (
     <button
       type="button"
       onClick={() => onPick(work, owned)}
       aria-label={
-        owned
-          ? `打开片单里的「${owned.item.name}」`
-          : `把「${work.title}」加入片单`
+        owned ? t.openOwned(owned.item.name) : t.addToLibrary(work.title)
       }
       data-track={owned ? "打开片单里的作品" : "从发现加入片单"}
       className="focus-visible:ring-ring/50 absolute inset-0 cursor-pointer rounded-[inherit] outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
@@ -387,8 +370,9 @@ function AiringRow({
   onPick: PickWork;
 }) {
   const w = a.work;
-  const note = airingNote(a.airingAt, now);
-  const aired = note === "已更新";
+  const t = useT();
+  const note = airingNote(a.airingAt, now, useLocale());
+  const aired = note === t.aired;
   return (
     <li className="hover:bg-accent/50 relative grid grid-cols-[2.75rem_2.5rem_minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-3 transition-colors">
       <PickButton work={w} owned={owned} onPick={onPick} />
@@ -405,7 +389,7 @@ function AiringRow({
       <div className="min-w-0">
         <Title work={w} />
         <p className="text-muted-foreground mt-0.5 text-[13px] tabular-nums">
-          第 {a.episode} 集
+          {t.episode(a.episode)}
           {w.total ? <span className="text-faint"> / {w.total}</span> : null}
           {note && (
             <span className={aired ? "text-green" : "text-faint"}>
@@ -429,6 +413,7 @@ function WorkCard({
   owned: Owned | null;
   onPick: PickWork;
 }) {
+  const t = useT();
   return (
     <li className="group bg-card hover:border-primary/40 relative flex flex-col overflow-hidden rounded-xl border transition-colors">
       <PickButton work={w} owned={owned} onPick={onPick} />
@@ -454,7 +439,7 @@ function WorkCard({
       </div>
       <div className="flex flex-1 flex-col gap-1 p-3">
         <Title work={w} className="text-sm" />
-        {meta(w).map((line) => (
+        {meta(w, t).map((line) => (
           <p key={line} className="text-faint line-clamp-1 text-xs">
             {line}
           </p>
@@ -466,6 +451,7 @@ function WorkCard({
 
 /** Title, with the AniList / TMDB page one tap away. */
 function Title({ work, className }: { work: Work; className?: string }) {
+  const t = useT();
   const site = work.key.startsWith("tmdb:") ? "TMDB" : "AniList";
   return (
     <div className="flex items-start gap-1">
@@ -489,9 +475,9 @@ function Title({ work, className }: { work: Work; className?: string }) {
             href={work.url}
             target="_blank"
             rel="noreferrer noopener"
-            aria-label={`在 ${site} 查看「${work.title}」`}
-            data-track={`在 ${site} 查看`}
-            title={`在 ${site} 查看`}
+            aria-label={t.viewOn(site, work.title)}
+            data-track={MESSAGES.zh.viewOnShort(site)}
+            title={t.viewOnShort(site)}
           >
             <ExternalLink aria-hidden className="size-3.5" />
           </a>
@@ -503,12 +489,13 @@ function Title({ work, className }: { work: Work; className?: string }) {
 
 /** In the library: its watch state. Otherwise a + that says tapping adds it. */
 function Mark({ owned }: { owned: Owned | null }) {
+  const t = useT();
   if (owned)
     return (
       <span className="flex flex-col items-end gap-1">
         <span className="text-primary inline-flex items-center gap-1 text-xs font-medium whitespace-nowrap">
           <Check aria-hidden className="size-3.5" />
-          在片单
+          {t.inLibrary}
         </span>
         <Tag value={owned.item.watch} />
       </span>
@@ -560,65 +547,59 @@ function Cover({ work, className }: { work: Work; className?: string }) {
   );
 }
 
-const WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
-
-/** "2026-10-04" → "10月4日"; partial dates as far as they go. */
-function day(date: string): string {
+/** "2026-10-04" → "10月4日" (or "Oct 4"); partial dates as far as they go. */
+function day(date: string, t: Messages): string {
   const [y, m, d] = date.split("-").map(Number);
-  const year = y === new Date().getFullYear() ? "" : `${y}年`;
-  if (!m) return `${y}年`;
-  return d ? `${year}${m}月${d}日` : `${y}年${m}月`;
+  return t.date(
+    y,
+    m || undefined,
+    d || undefined,
+    y === new Date().getFullYear(),
+  );
 }
 
-const PHASE_LABEL: Record<"动画" | "漫画", Record<Work["phase"], string>> = {
-  动画: {
-    upcoming: "未开播",
-    releasing: "放送中",
-    hiatus: "停播中",
-    finished: "已完结",
-    cancelled: "已中止",
-  },
-  漫画: {
-    upcoming: "未开始",
-    releasing: "连载中",
-    hiatus: "休刊中",
-    finished: "已完结",
-    cancelled: "已腰斩",
-  },
-};
-
 /** The lines under a card's title. */
-function meta(w: Work): string[] {
+function meta(w: Work, t: Messages): string[] {
   if (w.category === "漫画") {
-    const parts = [PHASE_LABEL.漫画[w.phase]];
-    if (w.total) parts.push(`${w.total} 话`);
+    const parts = [t.phase.manga[w.phase]];
+    if (w.total) parts.push(t.chapters(w.total));
     return [parts.join(" · ")];
   }
   if (w.key.startsWith("tmdb:")) {
-    return [w.date ? `${day(w.date)}上映` : "上映日期未定"];
+    return [w.date ? t.inCinemas(day(w.date, t)) : t.releaseTba];
   }
   // AniList anime, including 剧场版.
   const movie = w.category === "电影";
-  const first = [w.format, !movie && w.total ? `${w.total} 集` : ""]
+  const first = [
+    t.format[w.format] ?? w.format,
+    !movie && w.total ? t.episodes(w.total) : "",
+  ]
     .filter(Boolean)
     .join(" · ");
   let second: string;
   if (w.phase === "releasing" && w.next) {
     const at = new Date(w.next.airingAt * 1000);
-    second = `${WEEKDAYS[at.getDay()]} ${clock(w.next.airingAt)} 更新第 ${w.next.episode} 集`;
+    second = t.nextEpisode(
+      t.weekdays[at.getDay()],
+      clock(w.next.airingAt),
+      w.next.episode,
+    );
   } else if (w.phase === "upcoming") {
-    second = w.date ? `${day(w.date)}${movie ? "上映" : "开播"}` : "即将开播";
+    second = w.date
+      ? (movie ? t.inCinemas : t.premieres)(day(w.date, t))
+      : t.comingSoon;
   } else {
-    second = PHASE_LABEL.动画[w.phase];
+    second = t.phase.anime[w.phase];
   }
   return [first, second].filter(Boolean);
 }
 
 function GridSkeleton() {
+  const t = useT();
   return (
     <div
       aria-busy="true"
-      aria-label="加载中"
+      aria-label={t.loadingShort}
       className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
     >
       {Array.from({ length: 10 }, (_, i) => (
@@ -638,6 +619,7 @@ function GridSkeleton() {
  *  less prominent than the app's own, and this notice verbatim. The logo is
  *  TMDB's official "primary long" SVG (themoviedb.org/about/logos-attribution). */
 function Credit({ tmdb }: { tmdb: boolean }) {
+  const t = useT();
   if (tmdb) {
     return (
       <div className="text-faint mt-6 flex flex-col items-start gap-2 text-xs leading-relaxed">
@@ -651,7 +633,7 @@ function Credit({ tmdb }: { tmdb: boolean }) {
           <img src="/credits/tmdb.svg" alt="TMDB" className="h-3 w-auto" />
         </a>
         <p>
-          电影数据来自 TMDB。This website uses TMDB and the TMDB APIs but is not
+          {t.tmdbCredit} This website uses TMDB and the TMDB APIs but is not
           endorsed, certified, or otherwise approved by TMDB.
         </p>
       </div>
@@ -659,7 +641,7 @@ function Credit({ tmdb }: { tmdb: boolean }) {
   }
   return (
     <p className="text-faint mt-6 text-xs leading-relaxed">
-      数据来自{" "}
+      {t.dataFrom}{" "}
       <a
         href="https://anilist.co"
         target="_blank"

@@ -17,7 +17,8 @@ What's left and what could come next. Last updated 2026-10-10. The site is live 
 - [ ] **Finish the repo's About box.** The website is set; the description and topics are still empty (e.g. `nextjs`, `pwa`, `anime`, `manga`, `tracker`, `google-drive`).
 - [ ] **Turn on secret scanning and push protection** (Settings → Code security; free for public repos).
 - [x] **Website commit pushed;** the portfolio lists MediaLog (2026-10-10).
-- [ ] **Remaining dev-only advisory.** `braces` (under ESLint's Next config and the shadcn CLI) is flagged for every version, so there's no fixed release to move to yet. It only runs on your machine; update once a fix exists.
+- [x] **Security updates (2026-11-22).** Next 16.4.6, Serwist 9.5.15, Vitest 4.1.12 and the shadcn CLI 4.23.0; `npm audit --omit=dev` is clean.
+- [ ] **Remaining dev-only advisory.** `minimatch` under the shadcn CLI (via `ts-morph`) has no fixed release yet. It only runs on your machine when adding components; update once a fix exists.
 
 ## 2. Personal website (`Jacksonkao97.github.io`)
 

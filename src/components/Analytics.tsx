@@ -18,11 +18,14 @@
  *     for every button, link, menu item, tab or toggle (clickName). The name
  *     is the control's static label. Controls whose label holds the user's
  *     own data (an item's name in the list) set data-track to a fixed name
- *     instead; nothing from the library may reach GA. */
+ *     instead; nothing from the library may reach GA. An English label is
+ *     sent as the Chinese one it translates (zhName), so each button keeps
+ *     one name whichever language it was clicked in. */
 
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { clickName } from "@/lib/analytics";
+import { zhName } from "@/lib/i18n";
 import { isLaunch } from "@/lib/launch";
 
 declare global {
@@ -42,7 +45,8 @@ export function Analytics({ id }: { id: string }) {
     // Capture phase: Radix menus stop propagation of some clicks.
     const onClick = (e: MouseEvent) => {
       const name = clickName(e.target);
-      if (name) gtag("event", "button_click", { button_name: name });
+      // English labels are reported in Chinese, so stats don't split by language.
+      if (name) gtag("event", "button_click", { button_name: zhName(name) });
     };
     document.addEventListener("click", onClick, true);
     return () => document.removeEventListener("click", onClick, true);
