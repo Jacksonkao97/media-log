@@ -25,6 +25,9 @@ export interface Item {
   category: Category;
   url: string;
   note: string;
+  /** Actors, as free text ("李惠利、朴宝剑"). Optional, offered for 电视剧.
+   *  Left out of the file when empty, so items without it keep v1's shape. */
+  cast?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -74,9 +77,30 @@ export const emptyRegion = (region: Region): RegionFile => ({
 export const emptyLibrary = (): Library =>
   Object.fromEntries(REGIONS.map((r) => [r, emptyRegion(r)])) as Library;
 
+/** An item with its keys in file order (see normalise), and `cast` only
+ *  when it has something in it. Edits pass through here too, so a saved
+ *  file always has the same shape a load-then-save would give it. */
+export function tidyItem(it: Item): Item {
+  const cast = it.cast?.trim();
+  return {
+    id: it.id,
+    name: it.name,
+    progress: it.progress,
+    watch: it.watch,
+    status: it.status,
+    category: it.category,
+    url: it.url,
+    note: it.note,
+    ...(cast ? { cast } : {}),
+    createdAt: it.createdAt,
+    updatedAt: it.updatedAt,
+  };
+}
+
 /** The schema gate: anything read from storage or an imported file passes
  *  through here. Unknown enum values fall back to defaults, missing ids and
- *  timestamps are filled in. Key order matches tools/migrate.py so a
+ *  timestamps are filled in. Key order matches tools/migrate.py (which never
+ *  writes the optional `cast`) so a
  *  load-then-save never rewrites a file as a no-op diff. */
 export function normalise(raw: unknown, region: Region): RegionFile {
   const obj = (raw ?? {}) as Partial<RegionFile>;
@@ -93,7 +117,7 @@ export function normalise(raw: unknown, region: Region): RegionFile {
       const it = (x ?? {}) as Partial<Record<keyof Item, unknown>>;
       const createdAt =
         typeof it.createdAt === "string" ? it.createdAt : nowIso();
-      return {
+      return tidyItem({
         id: typeof it.id === "string" && it.id ? it.id : uuid(),
         name: String(it.name ?? ""),
         progress: String(it.progress ?? ""),
@@ -102,9 +126,10 @@ export function normalise(raw: unknown, region: Region): RegionFile {
         category: oneOf(CATEGORIES, it.category, "动画"),
         url: String(it.url ?? ""),
         note: String(it.note ?? ""),
+        cast: typeof it.cast === "string" ? it.cast : undefined,
         createdAt,
         updatedAt: typeof it.updatedAt === "string" ? it.updatedAt : createdAt,
-      };
+      });
     }),
   };
 }

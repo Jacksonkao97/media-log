@@ -137,6 +137,11 @@ function Row({
             {it.note}
           </p>
         )}
+        {it.cast && (
+          <p className="text-faint mt-0.5 line-clamp-1 text-[13px]">
+            {t.castLine(it.cast)}
+          </p>
+        )}
         <p className="text-faint mt-1 flex items-center gap-2 text-xs md:hidden">
           <Tag value={it.status} />
           <span aria-hidden>·</span>

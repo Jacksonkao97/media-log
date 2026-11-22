@@ -30,6 +30,7 @@ const FIELDS = [
   "category",
   "url",
   "note",
+  "cast",
   "createdAt",
   "updatedAt",
 ] as const satisfies readonly (keyof Item)[];

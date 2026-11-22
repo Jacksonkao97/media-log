@@ -4,7 +4,7 @@
  * (bottom sheet you can swipe down to dismiss). Both render the same form. */
 
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -121,6 +121,8 @@ function initialFields({ item, region, prefill }: DialogTarget): ItemFields {
     category: item?.category ?? (region === "欧美" ? "电影" : "动画"),
     url: item?.url ?? "",
     note: item?.note ?? "",
+    // Always sent, "" when empty, so clearing it removes it (tidyItem).
+    cast: item?.cast ?? "",
     ...(item ? {} : prefill),
   };
 }
@@ -147,6 +149,11 @@ function EditorForm({
     setF((prev) => ({ ...prev, [k]: v }));
   const editing = Boolean(target.item);
   const t = useT();
+  // Cast is optional: 电视剧 offers a button that opens the field. An item
+  // that already has a cast shows it straight away.
+  const [castOpen, setCastOpen] = useState(() => Boolean(f.cast));
+  // Opened by the button: focus the field as it appears.
+  const [castFocus, setCastFocus] = useState(false);
 
   const submit = (ev: FormEvent) => {
     ev.preventDefault();
@@ -159,6 +166,7 @@ function EditorForm({
         progress: f.progress.trim(),
         url: f.url.trim(),
         note: f.note.trim(),
+        cast: f.cast?.trim() ?? "",
       },
       region,
     );
@@ -249,6 +257,35 @@ function EditorForm({
             />
           </Field>
         </div>
+
+        {castOpen ? (
+          <Field id="f-cast" label={t.cast}>
+            <Input
+              id="f-cast"
+              autoFocus={castFocus}
+              className={INPUT}
+              autoComplete="off"
+              placeholder={t.castPlaceholder}
+              value={f.cast ?? ""}
+              onChange={(e) => set("cast", e.target.value)}
+            />
+          </Field>
+        ) : (
+          f.category === "电视剧" && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setCastOpen(true);
+                setCastFocus(true);
+              }}
+              className="text-muted-foreground w-fit border-dashed max-md:h-11"
+            >
+              <Plus aria-hidden />
+              {t.addCast}
+            </Button>
+          )
+        )}
 
         <Field id="f-url" label={t.link}>
           <Input
