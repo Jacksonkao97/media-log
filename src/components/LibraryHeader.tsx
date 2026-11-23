@@ -123,8 +123,12 @@ export function LibraryHeader({ searchRef, ...p }: Props) {
             )}
           />
 
+          {/* Desktop: the panel is display: contents, so the search, each chip
+              group, 清除筛选 and the sort are separate items of this one
+              wrapping row. It wraps between groups, never inside one, so a
+              short row never strands the search beside a two-line chip block. */}
           <div className="flex flex-wrap items-center gap-2">
-            <label className="relative min-w-0 flex-1 md:max-w-xs md:basis-64">
+            <label className="relative min-w-0 flex-1 md:max-w-xs md:min-w-48 md:basis-56">
               <span className="sr-only">{t.search}</span>
               <Search
                 aria-hidden
@@ -180,7 +184,7 @@ export function LibraryHeader({ searchRef, ...p }: Props) {
               id="filter-panel"
               className={cn(
                 panelOpen ? "flex" : "hidden",
-                "w-full flex-wrap items-center gap-2 md:flex md:w-auto md:flex-1",
+                "w-full flex-wrap items-center gap-2 md:contents",
               )}
             >
               <ToggleGroup
@@ -189,7 +193,7 @@ export function LibraryHeader({ searchRef, ...p }: Props) {
                 spacing={1.5}
                 value={[...p.filters.category]}
                 onValueChange={(v) => p.onFilter("category", v)}
-                className="max-md:gap-2"
+                className="max-md:flex-wrap max-md:gap-2"
               >
                 {CATEGORIES.map((c) => {
                   const Icon = CATEGORY[c].icon;
@@ -212,7 +216,7 @@ export function LibraryHeader({ searchRef, ...p }: Props) {
                 spacing={1.5}
                 value={[...p.filters.status]}
                 onValueChange={(v) => p.onFilter("status", v)}
-                className="max-md:gap-2"
+                className="max-md:flex-wrap max-md:gap-2"
               >
                 {STATUSES.map((s) => (
                   <ToggleGroupItem
@@ -226,7 +230,8 @@ export function LibraryHeader({ searchRef, ...p }: Props) {
                 ))}
               </ToggleGroup>
 
-              <div className="ml-auto flex items-center gap-1">
+              {/* Last on desktop, after 清除筛选. */}
+              <div className="ml-auto flex items-center gap-1 md:order-1">
                 <NativeSelect
                   aria-label={t.sort}
                   value={p.sortKey}
@@ -268,7 +273,7 @@ export function LibraryHeader({ searchRef, ...p }: Props) {
               <Button
                 variant="ghost"
                 onClick={p.onClear}
-                className="max-md:h-11 max-md:w-full"
+                className="text-muted-foreground px-2.5 text-[13px] max-md:h-11 max-md:w-full max-md:text-sm md:h-8"
               >
                 <X aria-hidden />
                 {t.clearFilters}
