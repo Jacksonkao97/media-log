@@ -72,7 +72,7 @@ The components under `src/components/`:
 - `useBackupReminder.ts` suggests 导出备份 to anyone not signed in, once 30 days have passed without an export, then again weekly until they export. It counts from `localStorage` `medialog:backup`: the last export, or the first check. `lib/backup.ts` holds the timing.
 - `Discover.tsx` is the 发现 section: the timetable and the work grids. `useFeed.ts` loads a feed.
 - `Reminders.tsx` is the 更新提醒 dialog; `useReminders.ts` holds its state. Both the sidebar and the phone ⋯ menu open it.
-- `LibraryHeader.tsx` has the title, the watch-state tabs, and the search, filter and sort row.
+- `LibraryHeader.tsx` has the title, the watch-state tabs, and the search, filter and sort row. The category and status filters are two rounded tracks of icon-only chips (`ChipGroup`; status icons are `STATUS_ICON` in `media.tsx`). A chip's label slides open on hover, keyboard focus, or while it is on; it stays in the DOM, clipped, as the accessible name. On desktop the filter panel is `display: contents`, so the search, each track, 清除筛选 and the sort wrap as separate items and never inside a track.
 - `ItemList.tsx` has the rows, the loading skeleton and the empty states.
 - `ItemDialog.tsx` is the add/edit form. It is a shadcn `Dialog` on desktop and a vaul `Drawer` (swipe-to-dismiss bottom sheet) on phones. `MediaLog` keeps the edit target separate from the open flag, so the closing animation still has content to show.
 - `Segmented.tsx` is a single-choice ToggleGroup with a Motion knob that slides between options.

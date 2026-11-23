@@ -1,6 +1,7 @@
 /* Title, the watch-state tabs (the filter used most) and the search/filter/sort row. */
 
 import { useState, type Ref } from "react";
+import type { LucideIcon } from "lucide-react";
 import {
   ArrowDownWideNarrow,
   ArrowUpNarrowWide,
@@ -32,7 +33,7 @@ import {
 } from "@/lib/schema";
 import { cn } from "@/lib/utils";
 import { useT } from "./locale";
-import { CATEGORY } from "./media";
+import { CATEGORY, STATUS_ICON } from "./media";
 import { Segmented } from "./Segmented";
 
 const ALL = "全部";
@@ -47,9 +48,6 @@ const SORTS: SortKey[] = [
   "status",
   "category",
 ];
-
-const CHIP =
-  "h-8 rounded-full! border px-3 text-[13px] font-normal text-muted-foreground shadow-none data-[state=on]:border-primary/50 data-[state=on]:bg-primary-soft data-[state=on]:text-foreground max-md:h-10 max-md:px-3.5";
 
 interface Props {
   searchRef?: Ref<HTMLInputElement>;
@@ -187,48 +185,22 @@ export function LibraryHeader({ searchRef, ...p }: Props) {
                 "w-full flex-wrap items-center gap-2 md:contents",
               )}
             >
-              <ToggleGroup
-                type="multiple"
-                aria-label={t.categoryLabel}
-                spacing={1.5}
-                value={[...p.filters.category]}
-                onValueChange={(v) => p.onFilter("category", v)}
-                className="max-md:flex-wrap max-md:gap-2"
-              >
-                {CATEGORIES.map((c) => {
-                  const Icon = CATEGORY[c].icon;
-                  return (
-                    <ToggleGroupItem
-                      key={c}
-                      value={c}
-                      variant="outline"
-                      className={CHIP}
-                    >
-                      <Icon aria-hidden className="size-3.5" />
-                      {t.category[c]}
-                    </ToggleGroupItem>
-                  );
-                })}
-              </ToggleGroup>
-              <ToggleGroup
-                type="multiple"
-                aria-label={t.statusLabel}
-                spacing={1.5}
-                value={[...p.filters.status]}
-                onValueChange={(v) => p.onFilter("status", v)}
-                className="max-md:flex-wrap max-md:gap-2"
-              >
-                {STATUSES.map((s) => (
-                  <ToggleGroupItem
-                    key={s}
-                    value={s}
-                    variant="outline"
-                    className={CHIP}
-                  >
-                    {t.status[s]}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
+              <ChipGroup
+                label={t.categoryLabel}
+                options={CATEGORIES}
+                value={p.filters.category}
+                onChange={(v) => p.onFilter("category", v)}
+                icon={(c) => CATEGORY[c].icon}
+                render={(c) => t.category[c]}
+              />
+              <ChipGroup
+                label={t.statusLabel}
+                options={STATUSES}
+                value={p.filters.status}
+                onChange={(v) => p.onFilter("status", v)}
+                icon={(s) => STATUS_ICON[s]}
+                render={(s) => t.status[s]}
+              />
 
               {/* Last on desktop, after 清除筛选. */}
               <div className="ml-auto flex items-center gap-1 md:order-1">
@@ -283,5 +255,61 @@ export function LibraryHeader({ searchRef, ...p }: Props) {
         </div>
       )}
     </>
+  );
+}
+
+/* A multi-select filter: one rounded track per kind (category, status), so
+ * the two read as separate groups. Each chip shows only its icon; the label
+ * slides open on hover, keyboard focus, or while the chip is on. The label
+ * stays in the DOM (clipped), so it is still the chip's accessible name. */
+function ChipGroup<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+  icon,
+  render,
+}: {
+  label: string;
+  options: readonly T[];
+  value: Set<T>;
+  onChange: (v: string[]) => void;
+  icon: (o: T) => LucideIcon;
+  render: (o: T) => string;
+}) {
+  return (
+    <ToggleGroup
+      type="multiple"
+      aria-label={label}
+      spacing={1}
+      value={[...value]}
+      onValueChange={onChange}
+      className="bg-muted rounded-full p-1 max-md:flex-wrap max-md:rounded-3xl"
+    >
+      {options.map((o) => {
+        const Icon = icon(o);
+        return (
+          <ToggleGroupItem
+            key={o}
+            value={o}
+            aria-label={render(o)}
+            // Chinese whatever the UI language (analytics).
+            data-track={o}
+            className="group/chip text-muted-foreground hover:bg-knob hover:text-foreground focus-visible:text-foreground data-[state=on]:bg-primary-soft data-[state=on]:text-foreground data-[state=on]:ring-primary/50 h-7 min-w-7 gap-0 rounded-full! px-1.5 text-[13px] font-normal data-[state=on]:ring-1 max-md:h-10 max-md:min-w-10 max-md:px-3"
+          >
+            <Icon aria-hidden className="size-4" />
+            <span className="grid grid-cols-[0fr] transition-[grid-template-columns] duration-200 ease-out group-hover/chip:grid-cols-[1fr] group-focus-visible/chip:grid-cols-[1fr] group-data-[state=on]/chip:grid-cols-[1fr]">
+              {/* Padding on the clipping box itself would stay visible at
+                  0fr, so it sits on an inner span. */}
+              <span className="overflow-hidden">
+                <span className="block pr-0.5 pl-1.5 whitespace-nowrap">
+                  {render(o)}
+                </span>
+              </span>
+            </span>
+          </ToggleGroupItem>
+        );
+      })}
+    </ToggleGroup>
   );
 }
