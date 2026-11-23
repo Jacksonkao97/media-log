@@ -28,6 +28,7 @@ const FIELDS = [
   "watch",
   "status",
   "category",
+  "year",
   "url",
   "note",
   "cast",

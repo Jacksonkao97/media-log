@@ -74,6 +74,7 @@ const zh = {
   sorts: {
     name: "名称",
     progress: "进度",
+    year: "年份",
     updatedAt: "最近更新",
     createdAt: "最近添加",
     status: "状态",
@@ -104,6 +105,8 @@ const zh = {
   addDesc: (region: string) => `添加到「${region}」`,
   name: "名称",
   namePlaceholder: "例如：全知读者视角",
+  year: "年份",
+  yearNone: "不填",
   progress: "进度",
   progressHint: "「125」「第41卷」都行，+1 加第一个数字",
   progressPlaceholder: "125 / 第41卷 / 剧场版",
@@ -369,6 +372,7 @@ const en: Messages = {
   sorts: {
     name: "Name",
     progress: "Progress",
+    year: "Year",
     updatedAt: "Recently updated",
     createdAt: "Recently added",
     status: "Status",
@@ -403,6 +407,8 @@ const en: Messages = {
   addDesc: (region) => `Add to ${region}`,
   name: "Name",
   namePlaceholder: "e.g. Omniscient Reader’s Viewpoint",
+  year: "Year",
+  yearNone: "Not set",
   progress: "Progress",
   progressHint: "“125” or “Vol. 41” both work; +1 adds to the first number",
   progressPlaceholder: "125 / Vol. 41 / Movie",

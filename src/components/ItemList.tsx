@@ -112,6 +112,11 @@ function Row({
           <span className="line-clamp-2 text-[15px] leading-snug font-medium">
             {it.name}
           </span>
+          {it.year && (
+            <span className="text-faint shrink-0 text-xs tabular-nums">
+              {it.year}
+            </span>
+          )}
           {href && (
             <Button
               asChild

@@ -40,6 +40,7 @@ import {
   REGIONS,
   WATCHES,
   emptyLibrary,
+  toYear,
   type Item,
   type ItemFields,
   type Library,
@@ -322,8 +323,12 @@ export function MediaLog({
 
   function sortBy(key: SortKey) {
     setSortKey(key);
-    // Dates are most useful newest-first; everything else reads better A→Z.
-    setSortDir(key === "createdAt" || key === "updatedAt" ? "desc" : "asc");
+    // Dates and years are most useful newest-first; everything else reads better A→Z.
+    setSortDir(
+      key === "createdAt" || key === "updatedAt" || key === "year"
+        ? "desc"
+        : "asc",
+    );
   }
 
   function setFilterValues(kind: "category" | "status", values: string[]) {
@@ -491,6 +496,8 @@ export function MediaLog({
               status: toStatus(work.phase),
               // Found, not started yet.
               watch: "未看",
+              // "2026-10-04", "2026-10" or "2026" when partly known.
+              year: toYear(work.date?.slice(0, 4)),
               url: work.url,
             },
           },

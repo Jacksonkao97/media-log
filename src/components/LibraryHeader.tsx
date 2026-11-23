@@ -41,6 +41,7 @@ type WatchTab = typeof ALL | Watch;
 const SORTS: SortKey[] = [
   "name",
   "progress",
+  "year",
   "updatedAt",
   "createdAt",
   "status",
