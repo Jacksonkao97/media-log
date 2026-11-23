@@ -1,7 +1,15 @@
-/* How the data model's values look. Both maps are typed by the enums in
+/* How the data model's values look. The maps are typed by the enums in
  * lib/schema.ts, so adding a value there makes the compiler ask for one here. */
 
-import { BookOpen, Film, MonitorPlay, Tv, type LucideIcon } from "lucide-react";
+import {
+  BookOpen,
+  CircleCheck,
+  CircleDashed,
+  Film,
+  MonitorPlay,
+  Tv,
+  type LucideIcon,
+} from "lucide-react";
 import type { Category, Status, Watch } from "@/lib/schema";
 import { cn } from "@/lib/utils";
 import { useT } from "./locale";
@@ -11,6 +19,12 @@ export const CATEGORY: Record<Category, { icon: LucideIcon; tone: string }> = {
   漫画: { icon: BookOpen, tone: "bg-sky/12 text-sky" },
   电影: { icon: Film, tone: "bg-red/12 text-red" },
   电视剧: { icon: MonitorPlay, tone: "bg-amber/12 text-amber" },
+};
+
+/** Status icons, for the icon-only filter chips. */
+export const STATUS_ICON: Record<Status, LucideIcon> = {
+  未完结: CircleDashed,
+  完结: CircleCheck,
 };
 
 const TAG_TONE: Record<Watch | Status, string> = {

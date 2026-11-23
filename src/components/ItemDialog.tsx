@@ -22,8 +22,13 @@ import {
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 import {
   CATEGORIES,
   REGIONS,
@@ -123,12 +128,27 @@ function initialFields({ item, region, prefill }: DialogTarget): ItemFields {
     note: item?.note ?? "",
     // Always sent, "" when empty, so clearing it removes it (tidyItem).
     cast: item?.cast ?? "",
+    // The key is always present (undefined when unset) for the same reason:
+    // updateItem spreads these over the old item.
+    year: item?.year,
     ...(item ? {} : prefill),
   };
 }
 
 // shadcn's Input is 16px on phones already (iOS Safari zooms into anything smaller).
 const INPUT = "bg-background h-10 max-md:h-11";
+
+/** The years offered, newest first: two ahead of now (announced works) back
+ *  to 1900, plus the item's own year if it falls outside that. */
+function yearOptions(current?: number): number[] {
+  const top = new Date().getFullYear() + 2;
+  const years = Array.from({ length: top - 1899 }, (_, i) => top - i);
+  if (current && !years.includes(current)) {
+    years.push(current);
+    years.sort((a, b) => b - a);
+  }
+  return years;
+}
 
 function EditorForm({
   target,
@@ -154,6 +174,7 @@ function EditorForm({
   const [castOpen, setCastOpen] = useState(() => Boolean(f.cast));
   // Opened by the button: focus the field as it appears.
   const [castFocus, setCastFocus] = useState(false);
+  const [years] = useState(() => yearOptions(f.year));
 
   const submit = (ev: FormEvent) => {
     ev.preventDefault();
@@ -175,18 +196,41 @@ function EditorForm({
   return (
     <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-col gap-4 overflow-y-auto px-6 pt-1 pb-5 max-md:px-4">
-        <Field id="f-name" label={t.name} required>
-          <Input
-            id="f-name"
-            className={INPUT}
-            required
-            autoFocus={autoFocus}
-            autoComplete="off"
-            placeholder={t.namePlaceholder}
-            value={f.name}
-            onChange={(e) => set("name", e.target.value)}
-          />
-        </Field>
+        <div className="grid grid-cols-[1fr_auto] gap-4 max-md:gap-3">
+          <Field id="f-name" label={t.name} required>
+            <Input
+              id="f-name"
+              className={INPUT}
+              required
+              autoFocus={autoFocus}
+              autoComplete="off"
+              placeholder={t.namePlaceholder}
+              value={f.name}
+              onChange={(e) => set("name", e.target.value)}
+            />
+          </Field>
+          <Field id="f-year" label={t.year}>
+            <NativeSelect
+              id="f-year"
+              value={f.year ? String(f.year) : ""}
+              onChange={(e) =>
+                set("year", e.target.value ? Number(e.target.value) : undefined)
+              }
+              className={cn(
+                INPUT,
+                "w-28 tabular-nums max-md:w-26 max-md:text-base",
+                !f.year && "text-muted-foreground",
+              )}
+            >
+              <NativeSelectOption value="">{t.yearNone}</NativeSelectOption>
+              {years.map((y) => (
+                <NativeSelectOption key={y} value={y}>
+                  {y}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </Field>
+        </div>
 
         <div className="grid grid-cols-[1fr_auto] gap-4 max-md:grid-cols-1">
           <Field id="f-progress" label={t.progress} hint={t.progressHint}>

@@ -23,6 +23,9 @@ export interface Item {
   watch: Watch;
   status: Status;
   category: Category;
+  /** Release year (2024). Optional, picked from a list in the editor.
+   *  Left out of the file when unset, like `cast`. */
+  year?: number;
   url: string;
   note: string;
   /** Actors, as free text ("李惠利、朴宝剑"). Optional, offered for 电视剧.
@@ -77,11 +80,21 @@ export const emptyRegion = (region: Region): RegionFile => ({
 export const emptyLibrary = (): Library =>
   Object.fromEntries(REGIONS.map((r) => [r, emptyRegion(r)])) as Library;
 
-/** An item with its keys in file order (see normalise), and `cast` only
- *  when it has something in it. Edits pass through here too, so a saved
+/** A plausible year as a number, or undefined. Files may hold it as a
+ *  number or a numeric string; anything else is dropped. */
+export function toYear(v: unknown): number | undefined {
+  const n = typeof v === "string" && v.trim() ? Number(v) : v;
+  return typeof n === "number" && Number.isInteger(n) && n >= 1000 && n <= 9999
+    ? n
+    : undefined;
+}
+
+/** An item with its keys in file order (see normalise), and `year` and
+ *  `cast` only when they have something in them. Edits pass through here too, so a saved
  *  file always has the same shape a load-then-save would give it. */
 export function tidyItem(it: Item): Item {
   const cast = it.cast?.trim();
+  const year = toYear(it.year);
   return {
     id: it.id,
     name: it.name,
@@ -89,6 +102,7 @@ export function tidyItem(it: Item): Item {
     watch: it.watch,
     status: it.status,
     category: it.category,
+    ...(year ? { year } : {}),
     url: it.url,
     note: it.note,
     ...(cast ? { cast } : {}),
@@ -100,7 +114,7 @@ export function tidyItem(it: Item): Item {
 /** The schema gate: anything read from storage or an imported file passes
  *  through here. Unknown enum values fall back to defaults, missing ids and
  *  timestamps are filled in. Key order matches tools/migrate.py (which never
- *  writes the optional `cast`) so a
+ *  writes the optional `year` or `cast`) so a
  *  load-then-save never rewrites a file as a no-op diff. */
 export function normalise(raw: unknown, region: Region): RegionFile {
   const obj = (raw ?? {}) as Partial<RegionFile>;
@@ -124,6 +138,7 @@ export function normalise(raw: unknown, region: Region): RegionFile {
         watch: oneOf(WATCHES, it.watch, "看着"),
         status: oneOf(STATUSES, it.status, "未完结"),
         category: oneOf(CATEGORIES, it.category, "动画"),
+        year: toYear(it.year),
         url: String(it.url ?? ""),
         note: String(it.note ?? ""),
         cast: typeof it.cast === "string" ? it.cast : undefined,

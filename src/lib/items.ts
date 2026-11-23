@@ -19,7 +19,13 @@ import {
 } from "./schema";
 
 export type SortKey =
-  "name" | "progress" | "status" | "category" | "createdAt" | "updatedAt";
+  | "name"
+  | "progress"
+  | "year"
+  | "status"
+  | "category"
+  | "createdAt"
+  | "updatedAt";
 export type SortDir = "asc" | "desc";
 
 export interface Filters {
@@ -59,6 +65,8 @@ function compare(a: Item, b: Item, key: SortKey): number {
       if (x !== null && y !== null && x !== y) return x - y;
       return RANK.watch(a.watch) - RANK.watch(b.watch);
     }
+    case "year":
+      return (a.year ?? 0) - (b.year ?? 0);
     case "status":
       return RANK.status(a.status) - RANK.status(b.status);
     case "category":
@@ -79,6 +87,8 @@ export function sortItems(items: Item[], key: SortKey, dir: SortDir): Item[] {
       if (x === null && y !== null) return 1;
       if (y === null && x !== null) return -1;
     }
+    // Likewise rows with no year.
+    if (key === "year" && !a.year !== !b.year) return a.year ? -1 : 1;
     return sign * compare(a, b, key) || COLLATOR.compare(a.name, b.name);
   });
 }
@@ -93,7 +103,8 @@ export function filterItems(items: Item[], q: string, f: Filters): Item[] {
       (!needle ||
         it.name.toLowerCase().includes(needle) ||
         it.note.toLowerCase().includes(needle) ||
-        (it.cast ?? "").toLowerCase().includes(needle)),
+        (it.cast ?? "").toLowerCase().includes(needle) ||
+        String(it.year ?? "") === needle),
   );
 }
 
@@ -139,7 +150,8 @@ export function updateItem(
 ): Edit | null {
   const old = lib[from].items.find((x) => x.id === id);
   if (!old) return null;
-  // The editor always sends `cast` ("" when cleared), so it can be removed.
+  // The editor always sends `cast` ("" when cleared) and the `year` key
+  // (undefined when cleared), so either can be removed.
   const updated = tidyItem({ ...old, ...fields, updatedAt: nowIso() });
 
   if (to === from) {
